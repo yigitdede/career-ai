@@ -43,6 +43,11 @@
                 <span class="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                     {{ __('panel.skill_radar.ai_badge') }}
                 </span>
+                @if (! empty($fromApi))
+                    <span class="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
+                        {{ __('panel.skill_radar.from_cv_analysis') }}
+                    </span>
+                @endif
             </div>
             <p class="panel-muted text-sm">{{ __('panel.skill_radar.subtitle', ['role' => $skillRadar['target_role']]) }}</p>
             <p class="panel-muted mt-1 text-xs">
@@ -52,7 +57,12 @@
                 @else
                     {{ __('panel.skill_radar.cv_file', ['name' => $cvFileName ?? 'cv']) }}
                 @endif
-                @if (! empty($showCvToolbar))
+                @if (! empty($showClearInline))
+                    · <button type="button" @click="clearCvAnalysis()"
+                        class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+                        {{ __('panel.skill_radar.clear_cv') }}
+                    </button>
+                @elseif (! empty($showCvToolbar))
                     · <button type="button" @click="clearCv()"
                         class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
                         {{ __('panel.skill_radar.clear_cv') }}

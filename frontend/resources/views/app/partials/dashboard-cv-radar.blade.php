@@ -4,14 +4,18 @@
     'empty_desc' => __('panel.skill_radar.empty_desc'),
     'upload_cta' => __('panel.skill_radar.upload_cta'),
     'create_cv' => __('panel.dashboard.create_cv'),
-]) }})" x-init="init()">
+]) }}, @js($hasCvAnalysis ?? false), @js($cvFileName ?? ''), @js(route('panel.cv.clear')))" x-init="init()">
 
     <div x-show="hasCv" x-cloak>
-        @include('app.partials.skill-radar-chart', [
-            'skillRadar' => $skillRadar,
-            'cvFileDynamic' => true,
-            'showCvToolbar' => true,
-        ])
+        @if (! empty($skillRadar))
+            @include('app.partials.skill-radar-chart', [
+                'skillRadar' => $skillRadar,
+                'cvFileName' => $cvFileName ?? null,
+                'cvFileDynamic' => ! empty($cvFileName),
+                'showCvToolbar' => true,
+                'fromApi' => $hasCvAnalysis ?? false,
+            ])
+        @endif
     </div>
 
     <section class="panel-card mb-8 border-dashed p-8 text-center" x-show="!hasCv" x-cloak>

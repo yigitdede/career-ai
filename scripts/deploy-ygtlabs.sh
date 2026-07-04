@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# CareerTalent AI → careertalent.ygtlabs.ai production deploy
+set -euo pipefail
+
+SRC="$(cd "$(dirname "$0")/.." && pwd)"
+DEST="/var/www/vhosts/ygtlabs.ai/careertalent.ygtlabs.ai"
+DOMAIN="careertalent.ygtlabs.ai"
+
+echo "→ rsync $SRC → $DEST"
+rsync -a --delete \
+  --exclude '.git' \
+  --exclude 'node_modules' \
+  --exclude 'frontend/node_modules' \
+  --exclude 'frontend/vendor' \
+  --exclude 'frontend/.env' \
+  --exclude 'backend/.venv' \
+  --exclude '.superpowers' \
+  "$SRC/" "$DEST/"
+
+cd "$DEST/frontend"
+
+echo "→ composer install (production)"
+composer install --no-dev --optimize-autoloader --no-interaction
+
+echo "→ npm ci + build"
+npm ci --silent 2>/dev/null || npm ci
+npm run build
+
+echo "→ landing export"
+bash "$DEST/scripts/build-landing.sh"
+
+echo "→ storage dirs"
+mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
+chmod -R ug+rwx storage bootstrap/cache
+
+echo "→ migrate + Livewire assets (Alpine panel UI)"
+php artisan migrate --force --no-interaction
+php artisan livewire:publish --assets --force --no-interaction
+
+echo "→ Laravel caches"
+php artisan route:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+echo "→ route smoke (panel.cv.analyze zorunlu)"
+php artisan route:list --name=panel.cv.analyze --columns=method,uri | grep -q 'cv/analiz' \
+  || { echo "HATA: panel.cv.analyze route cache'te yok"; exit 1; }
+
+echo "→ permissions"
+chown -R yigit:www-data "$DEST"
+
+echo "→ smoke (origin)"
+for path in / /panel /panel/profil /panel/cv-olustur; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $DOMAIN" "https://127.0.0.1${path}" --insecure)
+  echo "  $code $path"
+done
+
+lw=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $DOMAIN" "https://127.0.0.1/vendor/livewire/livewire.min.js" --insecure)
+echo "  $lw /vendor/livewire/livewire.min.js"
+
+echo "✓ Deploy tamam: https://$DOMAIN"

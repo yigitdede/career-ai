@@ -8,7 +8,7 @@
 
 @section('content')
 <div class="mx-auto max-w-7xl"
-    x-data="cvBuilder({{ Js::from($cvDraft) }}, {{ Js::from($cvLabels) }}, @js(app()->getLocale()))">
+    x-data="cvBuilder({{ Js::from($cvDraft) }}, {{ Js::from($cvLabels) }}, @js(app()->getLocale()), @js($hasCvAnalysis ?? false), @js($cvFileName ?? ''), @js(route('panel.cv.analyze-builder')), @js(route('panel.cv.clear')))">
 
     <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -19,7 +19,7 @@
             <button type="button" @click="saveCv()"
                 class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60"
                 :disabled="saveStatus === 'saving'"
-                x-text="saveStatus === 'saved' ? uiLabels[panelLocale].saved : (saveStatus === 'saving' ? uiLabels[panelLocale].saving : uiLabels[panelLocale].save)">
+                x-text="saveStatus === 'saving' ? uiLabels[panelLocale].analyzing : (saveStatus === 'saved' ? uiLabels[panelLocale].saved : uiLabels[panelLocale].save)">
             </button>
             <button type="button" @click="mode = mode === 'edit' ? 'preview' : 'edit'"
                 class="rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -44,11 +44,18 @@
     </div>
 
     <div x-show="showRadar" x-cloak class="mb-8">
-        @include('app.partials.skill-radar-chart', [
-            'skillRadar' => $skillRadar,
-            'cvFileDynamic' => true,
-        ])
+        @if (! empty($skillRadar))
+            @include('app.partials.skill-radar-chart', [
+                'skillRadar' => $skillRadar,
+                'cvFileName' => $cvFileName ?? null,
+                'cvFileDynamic' => false,
+                'fromApi' => $hasCvAnalysis ?? false,
+                'showClearInline' => true,
+            ])
+        @endif
     </div>
+
+    <p x-show="analyzeError" x-cloak class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-200" x-text="analyzeError"></p>
 
     <div class="grid gap-8 lg:grid-cols-2">
         @include('app.partials.cv-builder-form')

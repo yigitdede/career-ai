@@ -3,6 +3,7 @@
 use App\Http\Controllers\App\CareerLadderController;
 use App\Http\Controllers\App\ChatController;
 use App\Http\Controllers\App\CvBuilderController;
+use App\Http\Controllers\App\CvUploadController;
 use App\Http\Controllers\App\DashboardController;
 use App\Http\Controllers\App\JobMatchesController;
 use App\Http\Controllers\App\LearningController;
@@ -40,6 +41,9 @@ Route::middleware('marketing.locale')->group(function () {
 Route::prefix('panel')->name('panel.')->middleware('panel.locale')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profil', [ProfileController::class, 'show'])->name('profile');
+    Route::post('/cv/analiz', [CvUploadController::class, 'analyze'])->name('cv.analyze');
+    Route::post('/cv/analiz-olusturucu', [CvUploadController::class, 'analyzeBuilder'])->name('cv.analyze-builder');
+    Route::post('/cv/temizle', [CvUploadController::class, 'clear'])->name('cv.clear');
     Route::get('/kariyer-merdiveni', [CareerLadderController::class, 'show'])->name('career-ladder');
     Route::get('/cv-olustur', [CvBuilderController::class, 'show'])->name('cv-builder');
     Route::get('/yol-haritasi', [RoadmapController::class, 'show'])->name('roadmap');

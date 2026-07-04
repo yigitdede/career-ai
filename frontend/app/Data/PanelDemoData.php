@@ -207,10 +207,21 @@ class PanelDemoData
      *     uploaded_cv: array{name: string|null, uploaded_at: string|null}
      * }
      */
-    public static function profile(): array
+    /**
+     * @return array{name: string, avatar_url: string|null}
+     */
+    public static function panelUser(): array
     {
         return [
             'name' => 'Ayşe Yılmaz',
+            'avatar_url' => null,
+        ];
+    }
+
+    public static function profile(): array
+    {
+        return [
+            'name' => self::panelUser()['name'],
             'email' => 'ayse.yilmaz@ornek.edu.tr',
             'phone' => '+90 532 000 00 00',
             'location' => 'İstanbul, Türkiye',

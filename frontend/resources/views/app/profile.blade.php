@@ -109,7 +109,7 @@
         </form>
     </section>
 
-    <section id="cv-yukle" x-show="tab === 'cv'" x-cloak x-data="profileCvUpload(@js(app()->getLocale()))">
+    <section id="cv-yukle" x-show="tab === 'cv'" x-cloak x-data="profileCvUpload(@js(app()->getLocale()), @js(route('panel.cv.analyze')))">
         <div class="panel-card p-6">
             <h2 class="mb-2 font-semibold">{{ __('panel.profile.cv_file_title') }}</h2>
             <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">
@@ -118,6 +118,11 @@
                 ]) !!}
             </p>
 
+            <p x-show="loading" x-cloak class="mb-4 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-800 dark:text-sky-200">
+                {{ __('panel.profile.cv_analyzing') }}
+            </p>
+            <p x-show="error" x-cloak class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-200" x-text="error"></p>
+
             <template x-if="fileName">
                 <div class="mb-4 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
                     <span class="text-sm text-emerald-700 dark:text-emerald-300" x-text="fileName"></span>
@@ -125,7 +130,7 @@
                 </div>
             </template>
 
-            <label class="panel-upload-zone">
+            <label class="panel-upload-zone" :class="loading ? 'pointer-events-none opacity-60' : ''">
                 <span class="mb-2 text-3xl">📄</span>
                 <span class="mb-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ __('panel.profile.upload_drag') }}</span>
                 <span class="text-xs text-slate-500">{{ __('panel.profile.upload_hint') }}</span>

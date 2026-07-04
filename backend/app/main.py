@@ -30,11 +30,17 @@ app.add_middleware(
         "http://localhost:8080",
         "http://127.0.0.1:8080",
         "http://localhost:8000",
+        "https://careertalent.ygtlabs.ai",
+        "http://careertalent.ygtlabs.ai",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from app.api.v1.router import api_router  # noqa: E402
+
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -66,7 +66,6 @@ export const PanelCvStore = {
             source: 'builder',
             fileName,
             locales: persistedLocales,
-            skillRadar: demoSkillAnalysis(locale),
             savedAt: new Date().toISOString(),
         };
         writeState(state);
@@ -86,20 +85,44 @@ export const PanelCvStore = {
         return state;
     },
 
+    saveFromAnalysis(fileName, locale, skillRadar) {
+        const state = {
+            source: 'upload',
+            fileName,
+            skillRadar: {
+                ...skillRadar,
+                analyzed_at: skillRadar.analyzed_at ?? formatAnalyzedAt(locale === 'en' ? 'en' : 'tr'),
+            },
+            savedAt: new Date().toISOString(),
+        };
+        writeState(state);
+
+        return state;
+    },
+
     clear() {
         localStorage.removeItem(PANEL_CV_STORAGE_KEY);
         window.dispatchEvent(new CustomEvent('panel-cv-updated', { detail: null }));
     },
 };
 
-export function panelCvRadar(labels) {
+export function panelCvRadar(labels, serverHasCv = false, serverFileName = '', clearUrl = '') {
     return {
         labels,
-        hasCv: false,
-        cvFileName: '',
+        hasCv: Boolean(serverHasCv),
+        cvFileName: serverFileName || '',
+        clearUrl,
 
         init() {
-            this.refresh();
+            if (serverHasCv) {
+                this.hasCv = true;
+                this.cvFileName = serverFileName || this.cvFileName;
+                return;
+            }
+
+            const state = PanelCvStore.get();
+            this.hasCv = Boolean(state?.skillRadar);
+            this.cvFileName = state?.fileName ?? '';
             window.addEventListener('panel-cv-updated', () => this.refresh());
         },
 
@@ -113,17 +136,32 @@ export function panelCvRadar(labels) {
             return (this.labels.cv_file || '').replace(':name', this.cvFileName || 'cv');
         },
 
-        clearCv() {
+        async clearCv() {
+            if (this.clearUrl) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                try {
+                    await fetch(this.clearUrl, {
+                        method: 'POST',
+                        headers: token ? { 'X-CSRF-TOKEN': token, Accept: 'application/json' } : { Accept: 'application/json' },
+                    });
+                } catch {
+                    // session clear best-effort
+                }
+            }
+
             PanelCvStore.clear();
-            this.refresh();
+            window.location.reload();
         },
     };
 }
 
-export function profileCvUpload(locale) {
+export function profileCvUpload(locale, analyzeUrl) {
     return {
         fileName: null,
         locale,
+        analyzeUrl,
+        loading: false,
+        error: null,
 
         init() {
             const state = PanelCvStore.get();
@@ -132,17 +170,52 @@ export function profileCvUpload(locale) {
             }
         },
 
-        onFileSelect(event) {
+        async onFileSelect(event) {
             const file = event.target.files?.[0];
             if (!file) {
                 return;
             }
+
             this.fileName = file.name;
-            PanelCvStore.saveUpload(file.name, this.locale);
+            this.error = null;
+            this.loading = true;
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const body = new FormData();
+                body.append('cv', file);
+
+                const response = await fetch(this.analyzeUrl, {
+                    method: 'POST',
+                    headers: token ? { 'X-CSRF-TOKEN': token, Accept: 'application/json' } : { Accept: 'application/json' },
+                    body,
+                });
+
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.message || 'CV analizi başarısız');
+                }
+
+                const radar = payload.skill_radar ?? demoSkillAnalysis(this.locale);
+                PanelCvStore.saveFromAnalysis(file.name, this.locale, radar);
+
+                if (payload.redirect) {
+                    window.location.href = payload.redirect;
+                    return;
+                }
+            } catch (err) {
+                this.error = err?.message || 'CV analizi başarısız';
+                this.fileName = null;
+            } finally {
+                this.loading = false;
+                event.target.value = '';
+            }
         },
 
         removeCv() {
             this.fileName = null;
+            this.error = null;
             PanelCvStore.clear();
         },
     };

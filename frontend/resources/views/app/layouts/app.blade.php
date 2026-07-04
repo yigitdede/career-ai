@@ -36,14 +36,17 @@
                 <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain text-sm">
                     @include('app.partials.sidebar-nav')
                 </nav>
-                <div class="mt-auto shrink-0 border-t border-slate-200 pt-4 dark:border-slate-800">
-                    <a href="{{ route('home') }}"
-                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        {{ __('panel.nav.logout') }}
-                    </a>
+                <div class="mt-auto shrink-0">
+                    @include('app.partials.sidebar-user')
+                    <div class="border-t border-slate-200 pt-4 dark:border-slate-800">
+                        <a href="{{ route('home') }}"
+                            class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            {{ __('panel.nav.logout') }}
+                        </a>
+                    </div>
                 </div>
             </div>
         </aside>

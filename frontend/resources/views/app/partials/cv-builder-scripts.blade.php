@@ -1,5 +1,5 @@
 <script>
-function cvBuilder(initial, uiLabels, panelLocale) {
+function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '') {
     return {
         mode: 'edit',
         locales: initial,
@@ -12,41 +12,40 @@ function cvBuilder(initial, uiLabels, panelLocale) {
         pdfExportingLang: null,
         pdfExportError: '',
         saveStatus: 'idle',
-        showRadar: false,
-        cvFileName: '',
+        analyzeError: null,
+        showRadar: Boolean(serverHasCv),
+        cvFileName: serverFileName || '',
+        analyzeBuilderUrl,
+        clearUrl,
         cvFileLabel: @js(__('panel.skill_radar.cv_file', ['name' => ':name'])),
         optionalSectionPick: '',
         _skipLocalesSync: false,
 
         init() {
             const saved = window.PanelCvStore?.get();
+
+            if (serverHasCv) {
+                this.showRadar = true;
+                this.cvFileName = serverFileName || this.cvFileName;
+            }
+
             if (saved?.source === 'builder' && saved.locales) {
                 this.locales = JSON.parse(JSON.stringify(saved.locales));
-                this.showRadar = Boolean(saved.skillRadar);
-                this.cvFileName = saved.fileName ?? '';
-            } else if (saved?.skillRadar) {
-                this.showRadar = true;
-                this.cvFileName = saved.fileName ?? '';
             }
+
             this.normalizeAllLocales();
             window.addEventListener('panel-cv-updated', () => this.syncFromStore());
         },
 
         syncFromStore() {
             const saved = window.PanelCvStore?.get();
-            this.showRadar = Boolean(saved?.skillRadar);
-            this.cvFileName = saved?.fileName ?? '';
 
             if (this._skipLocalesSync) {
                 this._skipLocalesSync = false;
                 return;
             }
 
-            if (!saved?.skillRadar) {
-                return;
-            }
-
-            if (saved.source === 'builder' && saved.locales) {
+            if (saved?.source === 'builder' && saved.locales) {
                 this.locales = JSON.parse(JSON.stringify(saved.locales));
                 this.normalizeAllLocales();
             }
@@ -132,21 +131,63 @@ function cvBuilder(initial, uiLabels, panelLocale) {
             await new Promise((resolve) => setTimeout(resolve, 350));
         },
 
-        saveCv() {
-            if (!window.PanelCvStore) {
+        async saveCv() {
+            if (!window.PanelCvStore || !this.analyzeBuilderUrl) {
                 return;
             }
+
             this.saveStatus = 'saving';
+            this.analyzeError = null;
             this._skipLocalesSync = true;
-            const state = window.PanelCvStore.saveBuilder(this.locales, this.panelLocale);
-            this.showRadar = true;
-            this.cvFileName = state.fileName;
-            this.saveStatus = 'saved';
-            setTimeout(() => {
-                if (this.saveStatus === 'saved') {
-                    this.saveStatus = 'idle';
+            window.PanelCvStore.saveBuilder(this.locales, this.panelLocale);
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(this.analyzeBuilderUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                    },
+                    body: JSON.stringify({
+                        locales: this.locales,
+                        locale: this.panelLocale,
+                    }),
+                });
+
+                const payload = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(payload.message || this.uiLabels[this.panelLocale]?.analyze_failed || 'CV analizi başarısız');
                 }
-            }, 2500);
+
+                if (payload.skill_radar) {
+                    window.PanelCvStore.saveFromAnalysis(payload.file_name, this.panelLocale, payload.skill_radar);
+                }
+
+                window.location.reload();
+            } catch (err) {
+                this.analyzeError = err?.message || 'CV analizi başarısız';
+                this.saveStatus = 'idle';
+            }
+        },
+
+        async clearCvAnalysis() {
+            if (this.clearUrl) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                try {
+                    await fetch(this.clearUrl, {
+                        method: 'POST',
+                        headers: token ? { 'X-CSRF-TOKEN': token, Accept: 'application/json' } : { Accept: 'application/json' },
+                    });
+                } catch {
+                    // best-effort
+                }
+            }
+
+            window.PanelCvStore?.clear();
+            window.location.reload();
         },
 
         addEducation() {
