@@ -12,6 +12,7 @@ use App\Http\Controllers\App\ProfileController;
 use App\Http\Controllers\App\RoadmapController;
 use App\Http\Controllers\App\StudentFeaturesController;
 use App\Http\Controllers\App\TasksController;
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Marketing\AuthController;
 use App\Http\Controllers\Marketing\HomeController;
 use App\Http\Controllers\Marketing\LocaleController as MarketingLocaleController;
@@ -36,6 +37,22 @@ Route::middleware('marketing.locale')->group(function () {
     Route::get('/giris', [AuthController::class, 'login'])->name('login');
     Route::get('/kayit', [AuthController::class, 'register'])->name('register');
     Route::get('/locale/{locale}', [MarketingLocaleController::class, 'switch'])->name('marketing.locale');
+});
+
+
+// ── Admin panel (Sprint 2 demo: auth guard sonra eklenecek) ───────────────
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/ogrenciler', [AdminController::class, 'students'])->name('students');
+    Route::get('/cohortlar', [AdminController::class, 'cohorts'])->name('cohorts');
+    Route::get('/readiness', [AdminController::class, 'readiness'])->name('readiness');
+    Route::get('/yetenek-pasaportu', [AdminController::class, 'skillPassport'])->name('skill-passport');
+    Route::get('/is-radari', [AdminController::class, 'jobRadar'])->name('job-radar');
+    Route::get('/basvurular', [AdminController::class, 'applications'])->name('applications');
+    Route::get('/mulakatlar', [AdminController::class, 'interviews'])->name('interviews');
+    Route::get('/mentorlar', [AdminController::class, 'mentors'])->name('mentors');
+    Route::get('/egitimler', [AdminController::class, 'learning'])->name('learning');
+    Route::get('/ayarlar', [AdminController::class, 'settings'])->name('settings');
 });
 
 // ── Panel (Sprint 1: Breeze kurulunca auth middleware eklenecek) ──

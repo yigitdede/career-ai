@@ -11,18 +11,18 @@
 
     <section class="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div class="panel-card flex min-h-[32rem] flex-col p-5">
-            <div class="flex-1 space-y-3 overflow-y-auto rounded-2xl bg-slate-50 p-4 dark:bg-slate-900/60">
-                <div class="rounded-2xl rounded-tl-sm bg-emerald-500/10 p-3 text-sm text-slate-700 dark:text-slate-300">
+            <div class="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+                <div class="rounded-2xl rounded-tl-sm border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-slate-800 dark:text-slate-200">
                     {{ __('panel.chat.ready_message') }}
                 </div>
                 <template x-for="(message, i) in messages" :key="i">
                     <div class="flex" :class="message.from === 'user' ? 'justify-end' : 'justify-start'">
-                        <p class="max-w-[85%] rounded-2xl p-3 text-sm" :class="message.from === 'user' ? 'rounded-tr-sm bg-emerald-600 text-white' : 'rounded-tl-sm bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300'" x-text="message.body"></p>
+                        <p class="max-w-[85%] rounded-2xl p-3 text-sm" :class="message.from === 'user' ? 'rounded-tr-sm bg-emerald-600 text-white' : 'rounded-tl-sm border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'" x-text="message.body"></p>
                     </div>
                 </template>
             </div>
             <form class="mt-4 flex gap-3" @submit.prevent="send()">
-                <input x-model="text" class="min-w-0 flex-1 rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900" :placeholder="@js(__('panel.chat.input_placeholder'))">
+                <input x-model="text" class="panel-input-block min-w-0 flex-1 rounded-xl" :placeholder="@js(__('panel.chat.input_placeholder'))">
                 <button class="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-500">{{ __('panel.chat.send') }}</button>
             </form>
         </div>
@@ -31,7 +31,7 @@
             <h2 class="mb-3 font-semibold">{{ __('panel.chat.suggested_prompts') }}</h2>
             <div class="space-y-2">
                 @foreach ($assistant['prompts'] as $prompt)
-                    <button type="button" @click="ask({{ Js::from($prompt) }})" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-left text-sm hover:border-emerald-500/50 dark:border-slate-700">
+                    <button type="button" @click="ask({{ Js::from($prompt) }})" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:border-emerald-500/50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                         {{ $prompt['q'] }}
                     </button>
                 @endforeach

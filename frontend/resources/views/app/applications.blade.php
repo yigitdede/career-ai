@@ -16,8 +16,8 @@
     </section>
 
     <form class="panel-card mb-6 grid gap-3 p-4 md:grid-cols-[1fr_1fr_auto]" @submit.prevent="addApp()">
-        <input x-model="company" class="rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900" :placeholder="@js(__('panel.applications.company_placeholder'))">
-        <input x-model="role" class="rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900" :placeholder="@js(__('panel.applications.role_placeholder'))">
+        <input x-model="company" class="panel-input-block rounded-xl" :placeholder="@js(__('panel.applications.company_placeholder'))">
+        <input x-model="role" class="panel-input-block rounded-xl" :placeholder="@js(__('panel.applications.role_placeholder'))">
         <button class="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-500">{{ __('panel.applications.add_button') }}</button>
     </form>
 
@@ -30,7 +30,7 @@
                 </div>
                 <div class="space-y-3">
                     <template x-for="item in column.items" :key="item.company + item.role">
-                        <article class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70">
+                        <article class="panel-entry !space-y-1 p-4">
                             <p class="font-semibold" x-text="item.company"></p>
                             <p class="text-sm text-slate-700 dark:text-slate-300" x-text="item.role"></p>
                             <p class="panel-muted mt-2 text-xs" x-text="item.date + ' · ' + item.next"></p>

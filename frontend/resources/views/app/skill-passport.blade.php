@@ -57,11 +57,11 @@
             <h2 class="font-semibold">{{ __('panel.skill_passport.add_title') }}</h2>
             <label class="block text-sm">
                 <span class="mb-1 block text-xs text-slate-500">{{ __('panel.skill_passport.skill_label') }}</span>
-                <input x-model="newSkill" class="w-full rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900" placeholder="SQL, Power BI...">
+                <input x-model="newSkill" class="panel-input-block w-full rounded-xl" placeholder="SQL, Power BI...">
             </label>
             <label class="block text-sm">
                 <span class="mb-1 block text-xs text-slate-500">{{ __('panel.skill_passport.evidence_label') }}</span>
-                <textarea x-model="newEvidence" rows="4" class="w-full rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900" placeholder="GitHub linki, proje çıktısı, sertifika..."></textarea>
+                <textarea x-model="newEvidence" rows="4" class="panel-input-block w-full rounded-xl" placeholder="GitHub linki, proje çıktısı, sertifika..."></textarea>
             </label>
             <button class="w-full rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500">{{ __('panel.skill_passport.add_button') }}</button>
             <p class="panel-muted text-xs">{{ __('panel.skill_passport.demo_note') }}</p>

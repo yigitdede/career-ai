@@ -10,19 +10,19 @@
     </header>
 
     <section class="panel-card mb-6 grid gap-3 p-4 md:grid-cols-3">
-        <select x-model="role" class="rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900">
+        <select x-model="role" class="panel-input-block rounded-xl">
             <option value="all">{{ __('panel.job_radar.all_roles') }}</option>
             @foreach ($radar['roles'] as $role)
                 <option value="{{ $role }}">{{ $role }}</option>
             @endforeach
         </select>
-        <select x-model="source" class="rounded-xl border-slate-300 bg-white text-sm dark:border-slate-700 dark:bg-slate-900">
+        <select x-model="source" class="panel-input-block rounded-xl">
             <option value="all">{{ __('panel.job_radar.all_sources') }}</option>
             @foreach ($radar['sources'] as $source)
                 <option value="{{ $source }}">{{ $source }}</option>
             @endforeach
         </select>
-        <label class="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">
+        <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             <input type="checkbox" x-model="readyOnly" class="rounded border-slate-300 text-emerald-600">
             {{ __('panel.job_radar.ready_only') }}
         </label>

@@ -48,6 +48,7 @@ YZTA bootcamp ve benzeri programlardan mezun olan veya mezun olmaya hazırlanan 
 | Akıllı CV ayrıştırma | PDF → metin → Gemini ile profil çıkarımı | Sprint 1 | Kısmen (API var, auth/kuyruk yok) |
 | Tanıtım sitesi | Marketing rotaları + i18n | Sprint 1 | İskelet (6 sayfa placeholder) |
 | Öğrenci paneli | `/panel/*` Layout A | Sprint 1 | İskelet (demo veri) |
+| Admin paneli | `/admin/*` cohort, readiness, öğrenci ve gelir modülleri | Sprint 2 | Demo panel |
 | CV oluşturucu | Harvard format, TR/EN şablon | Sprint 1 | UI hazır |
 | Kariyer merdiveni | A (≥%70), B (%40-69), C (<%40) | Sprint 2 | Demo + API iskeleti |
 | Readiness skoru | Rol başına hazırlık yüzdesi | Sprint 2 | Planlı |
@@ -96,6 +97,7 @@ YZTA bootcamp ve benzeri programlardan mezun olan veya mezun olmaya hazırlanan 
 | US-16 | Başvurularımı aşama bazlı takip edebilmeliyim | Should | 2 | Demo panel |
 | US-17 | Hedef rol ilanlarını uyum ve gap uyarısıyla görebilmeliyim | Should | 2 | Demo panel |
 | US-18 | Mentor review paketi seçip demo talep oluşturabilmeliyim | Could | 3 | Demo panel |
+| US-19 | Admin olarak öğrenci, cohort, readiness ve gelir modüllerini yönetebilmeliyim | Should | 2 | Demo panel |
 
 Detaylı sprint görevleri: [Sprint 1](docs/sprintler/sprint-1-ilk-sprint.md) · [Sprint 2](docs/sprintler/sprint-2-ikinci-sprint.md) · [Sprint 3](docs/sprintler/sprint-3-son-sprint.md)
 
@@ -212,7 +214,9 @@ Detay: [sprint-1-ilk-sprint.md](docs/sprintler/sprint-1-ilk-sprint.md)
 
 **Sprint hedefi:** Öğrenci hedef mesleğini seçsin; eksik yetenekler ve haftalık yol haritasını görsün; hazırlık % panelde görünsün.
 
-**Sprint 2 demo modu:** FastAPI entegrasyonu şimdilik kapalı; öğrenci panelindeki CV analizi ve yeni gelir odaklı sayfalar demo veriyle çalışır. Yeni öğrenci sayfaları: `/panel/is-radari`, `/panel/basvuru-takibi`, `/panel/yetenek-pasaportu`, `/panel/mulakat-simulasyonu`, `/panel/mentor-degerlendirme`, `/panel/sohbet`.
+**Sprint 2 demo modu:** FastAPI entegrasyonu şimdilik kapalı; öğrenci panelindeki yeni gelir odaklı sayfalar demo veriyle çalışır. CV analiz akışı FastAPI proxy olarak bağlı kalır. Yeni öğrenci sayfaları: `/panel/is-radari`, `/panel/basvuru-takibi`, `/panel/yetenek-pasaportu`, `/panel/mulakat-simulasyonu`, `/panel/mentor-degerlendirme`, `/panel/sohbet`.
+
+**Sprint 2 admin demo modu:** `/admin` auth’suz demo yönetim yüzeyi olarak açıldı. Admin sayfaları öğrenci panelindeki ilgili modüllere bağlanır: `/admin/ogrenciler`, `/admin/cohortlar`, `/admin/readiness`, `/admin/yetenek-pasaportu`, `/admin/is-radari`, `/admin/basvurular`, `/admin/mulakatlar`, `/admin/mentorlar`, `/admin/egitimler`, `/admin/ayarlar`.
 
 _(Sprint 2 Daily Scrum, Board Updates, Review ve Retro ilerledikçe buraya eklenecek.)_
 
