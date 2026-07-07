@@ -2,11 +2,22 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PanelPagesI18nTest extends TestCase
 {
+
+  protected function setUp(): void
+  {
+    parent::setUp();
+
+    Http::fake([
+      'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
+      'http://localhost:8000/*' => Http::response([], 200),
+    ]);
+  }
   /**
    * @return array<string, array{string, string, list<string>}>
    */

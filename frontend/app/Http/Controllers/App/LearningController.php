@@ -8,8 +8,12 @@ class LearningController extends PanelController
 {
     public function show()
     {
+        $data = $this->panelApiData('learning', [
+            'learning_resources' => PanelDemoData::learningResources(),
+        ]);
+
         return $this->panelView('app.learning', [
-            'learningResources' => PanelDemoData::learningResources(),
+            'learningResources' => $data['learning_resources'],
         ]);
     }
 }

@@ -8,8 +8,12 @@ class ChatController extends PanelController
 {
     public function show()
     {
-        return $this->panelView('app.chat', [
+        $data = $this->panelApiData('chat', [
             'assistant' => PanelDemoData::chatAssistant(),
+        ]);
+
+        return $this->panelView('app.chat', [
+            'assistant' => $data['assistant'],
         ]);
     }
 }

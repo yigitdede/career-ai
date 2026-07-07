@@ -18,23 +18,23 @@ class CareerTalentApiClient
      */
     public function health(): array
     {
-        try {
-            $response = Http::timeout(3)->get($this->baseUrl().'/health');
+        return $this->getJson('/health', 3);
+    }
 
-            return [
-                'ok' => $response->successful(),
-                'status' => $response->status(),
-                'body' => $response->json(),
-                'error' => null,
-            ];
-        } catch (ConnectionException $exception) {
-            return [
-                'ok' => false,
-                'status' => null,
-                'body' => null,
-                'error' => $exception->getMessage(),
-            ];
-        }
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function panel(string $endpoint): array
+    {
+        return $this->getJson('/api/v1/panel/'.ltrim($endpoint, '/'), 10);
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function analyzePanelJob(string $url): array
+    {
+        return $this->postJson('/api/v1/panel/job-matches/analyze', ['url' => $url], 15);
     }
 
     /**
@@ -47,32 +47,9 @@ class CareerTalentApiClient
                 ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
                 ->post($this->baseUrl().'/api/v1/cv/analyze');
 
-            if (! $response->successful()) {
-                $message = $response->json('detail')
-                    ?? $response->json('message')
-                    ?? $response->body();
-
-                return [
-                    'ok' => false,
-                    'status' => $response->status(),
-                    'body' => null,
-                    'error' => is_string($message) ? $message : 'CV analizi başarısız',
-                ];
-            }
-
-            return [
-                'ok' => true,
-                'status' => $response->status(),
-                'body' => $response->json(),
-                'error' => null,
-            ];
+            return $this->normalizeResponse($response);
         } catch (ConnectionException $exception) {
-            return [
-                'ok' => false,
-                'status' => null,
-                'body' => null,
-                'error' => $exception->getMessage(),
-            ];
+            return $this->connectionError($exception);
         }
     }
 
@@ -81,39 +58,73 @@ class CareerTalentApiClient
      */
     public function analyzeCvText(string $cvText, string $fileName): array
     {
+        return $this->postJson('/api/v1/cv/analyze-text', [
+            'cv_text' => $cvText,
+            'file_name' => $fileName,
+        ], 120);
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    private function getJson(string $path, int $timeout): array
+    {
         try {
-            $response = Http::timeout(120)
-                ->post($this->baseUrl().'/api/v1/cv/analyze-text', [
-                    'cv_text' => $cvText,
-                    'file_name' => $fileName,
-                ]);
-
-            if (! $response->successful()) {
-                $message = $response->json('detail')
-                    ?? $response->json('message')
-                    ?? $response->body();
-
-                return [
-                    'ok' => false,
-                    'status' => $response->status(),
-                    'body' => null,
-                    'error' => is_string($message) ? $message : 'CV analizi başarısız',
-                ];
-            }
-
-            return [
-                'ok' => true,
-                'status' => $response->status(),
-                'body' => $response->json(),
-                'error' => null,
-            ];
+            return $this->normalizeResponse(Http::timeout($timeout)->get($this->baseUrl().$path));
         } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    private function postJson(string $path, array $payload, int $timeout): array
+    {
+        try {
+            return $this->normalizeResponse(Http::timeout($timeout)->post($this->baseUrl().$path, $payload));
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    private function normalizeResponse($response): array
+    {
+        if (! $response->successful()) {
+            $message = $response->json('detail')
+                ?? $response->json('message')
+                ?? $response->body();
+
             return [
                 'ok' => false,
-                'status' => null,
+                'status' => $response->status(),
                 'body' => null,
-                'error' => $exception->getMessage(),
+                'error' => is_string($message) ? $message : 'API isteği başarısız',
             ];
         }
+
+        return [
+            'ok' => true,
+            'status' => $response->status(),
+            'body' => $response->json(),
+            'error' => null,
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: null, error: string}
+     */
+    private function connectionError(ConnectionException $exception): array
+    {
+        return [
+            'ok' => false,
+            'status' => null,
+            'body' => null,
+            'error' => $exception->getMessage(),
+        ];
     }
 }

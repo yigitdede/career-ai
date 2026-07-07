@@ -8,9 +8,14 @@ class TasksController extends PanelController
 {
     public function show()
     {
-        return $this->panelView('app.tasks', [
-            'weeklyTasks' => PanelDemoData::weeklyTasks(),
+        $data = $this->panelApiData('tasks', [
             'stats' => PanelDemoData::stats(),
+            'weekly_tasks' => PanelDemoData::weeklyTasks(),
+        ]);
+
+        return $this->panelView('app.tasks', [
+            'weeklyTasks' => $data['weekly_tasks'],
+            'stats' => $data['stats'],
         ]);
     }
 }

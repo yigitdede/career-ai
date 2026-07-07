@@ -169,17 +169,17 @@ class AdminDemoData
     public static function nav(): array
     {
         return [
-            ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => '📊'],
-            ['route' => 'admin.students', 'label' => 'Öğrenciler', 'icon' => '👤'],
-            ['route' => 'admin.cohorts', 'label' => 'Cohortlar', 'icon' => '🎓'],
-            ['route' => 'admin.readiness', 'label' => 'Readiness', 'icon' => '📈'],
-            ['route' => 'admin.skill-passport', 'label' => 'Yetenek Pasaportu', 'icon' => '✅'],
-            ['route' => 'admin.job-radar', 'label' => 'İş Radarı', 'icon' => '🛰️'],
-            ['route' => 'admin.applications', 'label' => 'Başvurular', 'icon' => '🗂️'],
-            ['route' => 'admin.interviews', 'label' => 'Mülakatlar', 'icon' => '💬'],
-            ['route' => 'admin.mentors', 'label' => 'Mentorlar', 'icon' => '🤝'],
-            ['route' => 'admin.learning', 'label' => 'Eğitimler', 'icon' => '📚'],
-            ['route' => 'admin.settings', 'label' => 'Ayarlar', 'icon' => '⚙️'],
+            ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'icon' => 'dashboard'],
+            ['route' => 'admin.students', 'label' => 'Öğrenciler', 'icon' => 'profile'],
+            ['route' => 'admin.cohorts', 'label' => 'Cohortlar', 'icon' => 'cohorts'],
+            ['route' => 'admin.readiness', 'label' => 'Readiness', 'icon' => 'ladder'],
+            ['route' => 'admin.skill-passport', 'label' => 'Yetenek Pasaportu', 'icon' => 'passport'],
+            ['route' => 'admin.job-radar', 'label' => 'İş Radarı', 'icon' => 'radar'],
+            ['route' => 'admin.applications', 'label' => 'Başvurular', 'icon' => 'applications'],
+            ['route' => 'admin.interviews', 'label' => 'Mülakatlar', 'icon' => 'interview'],
+            ['route' => 'admin.mentors', 'label' => 'Mentorlar', 'icon' => 'mentors'],
+            ['route' => 'admin.learning', 'label' => 'Eğitimler', 'icon' => 'learning'],
+            ['route' => 'admin.settings', 'label' => 'Ayarlar', 'icon' => 'settings'],
         ];
     }
 }

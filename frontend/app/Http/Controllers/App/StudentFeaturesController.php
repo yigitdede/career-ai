@@ -8,36 +8,56 @@ class StudentFeaturesController extends PanelController
 {
     public function skillPassport()
     {
-        return $this->panelView('app.skill-passport', [
+        $data = $this->panelApiData('skill-passport', [
             'passport' => PanelDemoData::skillPassport(),
+        ]);
+
+        return $this->panelView('app.skill-passport', [
+            'passport' => $data['passport'],
         ]);
     }
 
     public function interview()
     {
-        return $this->panelView('app.interview', [
+        $data = $this->panelApiData('interview', [
             'interview' => PanelDemoData::interviewSimulator(),
+        ]);
+
+        return $this->panelView('app.interview', [
+            'interview' => $data['interview'],
         ]);
     }
 
     public function applications()
     {
-        return $this->panelView('app.applications', [
+        $data = $this->panelApiData('applications', [
             'applications' => PanelDemoData::applicationTracker(),
+        ]);
+
+        return $this->panelView('app.applications', [
+            'applications' => $data['applications'],
         ]);
     }
 
     public function jobRadar()
     {
-        return $this->panelView('app.job-radar', [
+        $data = $this->panelApiData('job-radar', [
             'radar' => PanelDemoData::jobRadar(),
+        ]);
+
+        return $this->panelView('app.job-radar', [
+            'radar' => $data['radar'],
         ]);
     }
 
     public function mentors()
     {
-        return $this->panelView('app.mentors', [
+        $data = $this->panelApiData('mentors', [
             'mentors' => PanelDemoData::mentorMarketplace(),
+        ]);
+
+        return $this->panelView('app.mentors', [
+            'mentors' => $data['mentors'],
         ]);
     }
 }

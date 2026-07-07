@@ -2,10 +2,36 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class MarketingPagesTest extends TestCase
 {
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake([
+            'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
+            'http://localhost:8000/api/v1/panel/ilan-eslestirme/analyze' => Http::response([], 404),
+            'http://localhost:8000/api/v1/panel/job-matches/analyze' => Http::response([
+                'job' => [
+                    'id' => 'api-kariyer-bi-analisti',
+                    'title' => 'BI Analisti',
+                    'company' => 'Perakende AI',
+                    'source' => 'kariyer.net',
+                    'url' => 'https://www.kariyer.net/is-ilani/bi-analisti-perakende',
+                    'match_score' => 82,
+                    'matched_skills' => ['SQL'],
+                    'missing_skills' => ['Power BI'],
+                    'recommendation' => 'prepare',
+                    'analyzed_at' => '2026-07-07T00:00:00+00:00',
+                ],
+            ], 200),
+            'http://localhost:8000/*' => Http::response([], 200),
+        ]);
+    }
     public function test_ana_sayfa_acilir(): void
     {
         $response = $this->get('/');

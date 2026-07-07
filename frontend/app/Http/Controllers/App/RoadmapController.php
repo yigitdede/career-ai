@@ -8,9 +8,14 @@ class RoadmapController extends PanelController
 {
     public function show()
     {
-        return $this->panelView('app.roadmap', [
+        $data = $this->panelApiData('roadmap', [
             'stats' => PanelDemoData::stats(),
-            'roadmapTasks' => PanelDemoData::weeklyTasks(),
+            'weekly_tasks' => PanelDemoData::weeklyTasks(),
+        ]);
+
+        return $this->panelView('app.roadmap', [
+            'stats' => $data['stats'],
+            'roadmapTasks' => $data['weekly_tasks'],
         ]);
     }
 }
