@@ -20,6 +20,10 @@ from app.schemas.panel import (
     InterviewResponse,
     JobMatchAnalyzeResponse,
     JobMatchesResponse,
+    JobListingParseRequest,
+    JobListingParseResponse,
+    TargetRoleRequest,
+    TargetRoleResponse,
     JobRadarResponse,
     LearningResponse,
     MentorsResponse,
@@ -27,6 +31,8 @@ from app.schemas.panel import (
     SkillPassportResponse,
     TasksResponse,
 )
+from app.services.job_listing_parser import parse_job_listing
+from app.services.panel_target_store import get_target, put_target
 
 router = APIRouter()
 
@@ -385,3 +391,42 @@ def job_matches() -> JobMatchesResponse:
 @router.post("/job-matches/analyze", response_model=JobMatchAnalyzeResponse)
 def analyze_job_match(body: JobMatchRequest) -> JobMatchAnalyzeResponse:
     return {"job": _analyze_job(body.url)}
+
+
+@router.get("/target", response_model=TargetRoleResponse)
+def target_role() -> TargetRoleResponse:
+    return {"target": get_target()}
+
+
+@router.put("/target", response_model=TargetRoleResponse)
+def save_target_role(body: TargetRoleRequest) -> TargetRoleResponse:
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Hedef rol başlığı gerekli")
+
+    target = {
+        "source": body.source,
+        "role_id": body.role_id or f"{body.source}-{uuid4()}",
+        "title": title,
+        "readiness": body.readiness if body.readiness is not None else (30 if body.source == "job_url" else 35),
+        "gap_count": body.gap_count if body.gap_count is not None else 4,
+        "gaps_summary": body.gaps_summary or "Rol gereksinimleri, portfolio, CV uyumu, başvuru planı",
+        "weeks_estimate": body.weeks_estimate or ("2–4 hafta" if body.source == "job_url" else "4–8 hafta"),
+        "selected_at": datetime.now(timezone.utc).isoformat(),
+        "required_skills": body.required_skills,
+        "parsed_from": body.parsed_from,
+    }
+    if body.job_url:
+        target["job_url"] = body.job_url
+    if body.swot:
+        target["swot"] = body.swot.model_dump()
+
+    return {"target": put_target(target)}
+
+
+@router.post("/job-listings/parse", response_model=JobListingParseResponse)
+def parse_job_listing_endpoint(body: JobListingParseRequest) -> JobListingParseResponse:
+    try:
+        return parse_job_listing(body.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

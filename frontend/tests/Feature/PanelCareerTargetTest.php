@@ -13,6 +13,16 @@ class PanelCareerTargetTest extends TestCase
 
         Http::fake([
             'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
+            'http://localhost:8000/api/v1/panel/target' => Http::response(['target' => null], 200),
+            'http://localhost:8000/api/v1/panel/job-listings/parse' => Http::response([
+                'url' => 'https://www.linkedin.com/jobs/view/junior-product-analyst-123',
+                'title' => 'Junior Product Analyst',
+                'company' => 'LinkedIn',
+                'source' => 'linkedin.com',
+                'role_id' => 'job-linkedin-junior-product-analyst',
+                'required_skills' => ['SQL', 'Product Analytics'],
+                'parsed_from' => 'url',
+            ], 200),
             'http://localhost:8000/*' => Http::response([], 200),
         ]);
     }
@@ -46,6 +56,9 @@ class PanelCareerTargetTest extends TestCase
         ])->assertRedirect(route('panel.roadmap'));
 
         $this->assertSame('Veri Analisti', session('panel_target_role.title'));
+        Http::assertSent(fn ($request) => $request->method() === 'PUT'
+            && $request->url() === 'http://localhost:8000/api/v1/panel/target'
+            && $request['title'] === 'Veri Analisti');
 
         $this->get(route('panel.roadmap'))
             ->assertOk()
@@ -82,8 +95,17 @@ class PanelCareerTargetTest extends TestCase
 
         $this->get(route('panel.roadmap'))
             ->assertOk()
-            ->assertSee('İlan hedefi: Junior Product Analyst 123', false)
+            ->assertSee('İlan hedefi: Junior Product Analyst', false)
             ->assertSee('İlan gereksinimlerini çıkar', false)
+            ->assertSee('SQL kanıtı oluştur', false)
+            ->assertSee('Product Analytics kanıtı oluştur', false)
             ->assertSee('İlanı aç', false);
+
+        Http::assertSent(fn ($request) => $request->method() === 'POST'
+            && $request->url() === 'http://localhost:8000/api/v1/panel/job-listings/parse');
+        Http::assertSent(fn ($request) => $request->method() === 'PUT'
+            && $request->url() === 'http://localhost:8000/api/v1/panel/target'
+            && $request['source'] === 'job_url'
+            && $request['title'] === 'İlan hedefi: Junior Product Analyst');
     }
 }

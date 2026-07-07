@@ -11,10 +11,11 @@ class PanelTargetRoleStore
 
     /**
      * @param  array<string, mixed>  $role
+     * @return array<string, mixed>
      */
-    public static function putLadderRole(array $role): void
+    public static function putLadderRole(array $role): array
     {
-        Session::put(self::SESSION_KEY, [
+        return self::persist([
             'source' => 'ladder',
             'role_id' => (string) ($role['id'] ?? Str::slug((string) ($role['title'] ?? 'hedef-rol'))),
             'title' => (string) ($role['title'] ?? 'Hedef rol'),
@@ -23,15 +24,18 @@ class PanelTargetRoleStore
             'gaps_summary' => (string) ($role['gaps_summary'] ?? ''),
             'weeks_estimate' => $role['weeks_estimate'] ?? null,
             'swot' => $role['swot'] ?? null,
-            'selected_at' => now()->toIso8601String(),
+            'required_skills' => self::skillsFromRole($role),
         ]);
     }
 
-    public static function putCustomRole(string $title): void
+    /**
+     * @return array<string, mixed>
+     */
+    public static function putCustomRole(string $title): array
     {
         $cleanTitle = trim($title);
 
-        Session::put(self::SESSION_KEY, [
+        return self::persist([
             'source' => 'custom',
             'role_id' => 'custom-'.Str::slug($cleanTitle),
             'title' => $cleanTitle,
@@ -39,28 +43,31 @@ class PanelTargetRoleStore
             'gap_count' => 4,
             'gaps_summary' => 'Rol gereksinimleri, portfolio, CV uyumu, başvuru planı',
             'weeks_estimate' => '4–8 hafta',
-            'selected_at' => now()->toIso8601String(),
+            'required_skills' => ['Rol gereksinimleri', 'Portfolio kanıtı', 'CV anahtar kelimeleri'],
         ]);
     }
 
-    public static function putJobUrl(string $url): void
+    /**
+     * @return array<string, mixed>
+     */
+    public static function putJobUrl(string $url): array
     {
         $cleanUrl = trim($url);
+        $parsed = self::parseJobListing($cleanUrl);
+        $title = (string) ($parsed['title'] ?? self::titleFromUrl($cleanUrl));
         $host = parse_url($cleanUrl, PHP_URL_HOST) ?: 'ilan';
-        $host = preg_replace('/^www\./', '', (string) $host) ?: 'ilan';
-        $path = trim((string) (parse_url($cleanUrl, PHP_URL_PATH) ?: ''), '/');
-        $slug = $path !== '' ? Str::of(basename($path))->replace(['-', '_'], ' ')->title()->toString() : Str::of($host)->title()->toString();
 
-        Session::put(self::SESSION_KEY, [
+        return self::persist([
             'source' => 'job_url',
-            'role_id' => 'job-'.Str::slug($host.'-'.$slug),
-            'title' => 'İlan hedefi: '.$slug,
-            'job_url' => $cleanUrl,
+            'role_id' => (string) ($parsed['role_id'] ?? 'job-'.Str::slug($host.'-'.$title)),
+            'title' => 'İlan hedefi: '.$title,
+            'job_url' => (string) ($parsed['url'] ?? $cleanUrl),
             'readiness' => 30,
-            'gap_count' => 5,
-            'gaps_summary' => 'İlan gereksinimleri, anahtar kelimeler, CV uyumu, başvuru hazırlığı',
+            'gap_count' => max(3, count($parsed['required_skills'] ?? [])),
+            'gaps_summary' => implode(', ', $parsed['required_skills'] ?? ['İlan gereksinimleri', 'anahtar kelimeler', 'CV uyumu']),
             'weeks_estimate' => '2–4 hafta',
-            'selected_at' => now()->toIso8601String(),
+            'parsed_from' => $parsed['parsed_from'] ?? 'url',
+            'required_skills' => $parsed['required_skills'] ?? ['İlan gereksinimleri', 'CV anahtar kelimeleri'],
         ]);
     }
 
@@ -69,9 +76,17 @@ class PanelTargetRoleStore
      */
     public static function get(): ?array
     {
-        $target = Session::get(self::SESSION_KEY);
+        $result = app(CareerTalentApiClient::class)->panelTarget();
+        $target = $result['body']['target'] ?? null;
+        if (($result['ok'] ?? false) && is_array($target)) {
+            Session::put(self::SESSION_KEY, $target);
 
-        return is_array($target) ? $target : null;
+            return $target;
+        }
+
+        $sessionTarget = Session::get(self::SESSION_KEY);
+
+        return is_array($sessionTarget) ? $sessionTarget : null;
     }
 
     public static function storageKey(): string
@@ -82,5 +97,60 @@ class PanelTargetRoleStore
         }
 
         return 'panel-weekly-tasks-'.Str::slug((string) ($target['role_id'] ?? $target['title'] ?? 'target'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $target
+     * @return array<string, mixed>
+     */
+    private static function persist(array $target): array
+    {
+        $target['selected_at'] = now()->toIso8601String();
+        Session::put(self::SESSION_KEY, $target);
+
+        $result = app(CareerTalentApiClient::class)->savePanelTarget($target);
+        $apiTarget = $result['body']['target'] ?? null;
+        if (($result['ok'] ?? false) && is_array($apiTarget)) {
+            Session::put(self::SESSION_KEY, $apiTarget);
+
+            return $apiTarget;
+        }
+
+        return $target;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function parseJobListing(string $url): array
+    {
+        $result = app(CareerTalentApiClient::class)->parseJobListing($url);
+        $body = $result['body'] ?? null;
+
+        return (($result['ok'] ?? false) && is_array($body)) ? $body : [];
+    }
+
+    private static function titleFromUrl(string $url): string
+    {
+        $path = trim((string) (parse_url($url, PHP_URL_PATH) ?: ''), '/');
+        $slug = $path !== '' ? basename($path) : (parse_url($url, PHP_URL_HOST) ?: 'İş ilanı');
+
+        return Str::of($slug)->replace(['-', '_'], ' ')->title()->toString();
+    }
+
+    /**
+     * @param  array<string, mixed>  $role
+     * @return list<string>
+     */
+    private static function skillsFromRole(array $role): array
+    {
+        $swot = $role['swot'] ?? null;
+        if (is_array($swot) && isset($swot['weaknesses']) && is_array($swot['weaknesses'])) {
+            return array_values(array_filter($swot['weaknesses'], 'is_string'));
+        }
+
+        $summary = (string) ($role['gaps_summary'] ?? '');
+
+        return array_values(array_filter(array_map('trim', explode(',', $summary))));
     }
 }

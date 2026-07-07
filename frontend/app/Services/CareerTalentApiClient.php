@@ -37,6 +37,32 @@ class CareerTalentApiClient
         return $this->postJson('/api/v1/panel/job-matches/analyze', ['url' => $url], 15);
     }
 
+
+    /**
+     * @param  array<string, mixed>  $target
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function savePanelTarget(array $target): array
+    {
+        return $this->putJson('/api/v1/panel/target', $target, 10);
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function panelTarget(): array
+    {
+        return $this->getJson('/api/v1/panel/target', 5);
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function parseJobListing(string $url): array
+    {
+        return $this->postJson('/api/v1/panel/job-listings/parse', ['url' => $url], 12);
+    }
+
     /**
      * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
      */
@@ -84,6 +110,20 @@ class CareerTalentApiClient
     {
         try {
             return $this->normalizeResponse(Http::timeout($timeout)->post($this->baseUrl().$path, $payload));
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    private function putJson(string $path, array $payload, int $timeout): array
+    {
+        try {
+            return $this->normalizeResponse(Http::timeout($timeout)->put($this->baseUrl().$path, $payload));
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }

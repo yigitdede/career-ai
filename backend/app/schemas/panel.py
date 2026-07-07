@@ -225,3 +225,50 @@ class JobMatchesResponse(BaseModel):
 
 class JobMatchAnalyzeResponse(BaseModel):
     job: JobMatch
+
+
+class TargetRole(BaseModel):
+    source: Literal["ladder", "custom", "job_url"]
+    role_id: str
+    title: str
+    readiness: int = Field(..., ge=0, le=100)
+    gap_count: int = Field(..., ge=0)
+    gaps_summary: str
+    weeks_estimate: str | None = None
+    selected_at: str
+    job_url: str | None = None
+    swot: CareerSwot | None = None
+    parsed_from: str | None = None
+    required_skills: list[str] = Field(default_factory=list)
+
+
+class TargetRoleResponse(BaseModel):
+    target: TargetRole | None = None
+
+
+class TargetRoleRequest(BaseModel):
+    source: Literal["ladder", "custom", "job_url"]
+    role_id: str | None = None
+    title: str | None = None
+    readiness: int | None = Field(default=None, ge=0, le=100)
+    gap_count: int | None = Field(default=None, ge=0)
+    gaps_summary: str | None = None
+    weeks_estimate: str | None = None
+    job_url: str | None = None
+    swot: CareerSwot | None = None
+    parsed_from: str | None = None
+    required_skills: list[str] = Field(default_factory=list)
+
+
+class JobListingParseRequest(BaseModel):
+    url: str
+
+
+class JobListingParseResponse(BaseModel):
+    url: str
+    title: str
+    company: str
+    source: str
+    role_id: str
+    required_skills: list[str]
+    parsed_from: Literal["html", "url"]
