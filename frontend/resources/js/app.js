@@ -11,6 +11,7 @@ import {
     removeOptionalSectionFromBothLocales,
 } from './cv-optional-sections';
 import { initCareersWizard } from './careers-wizard';
+import { initMarketingMotion } from './marketing-motion';
 
 window.PanelCvStore = PanelCvStore;
 window.panelCvRadar = panelCvRadar;
@@ -29,3 +30,9 @@ window.CvOptionalSections = {
     optionalEntryHasContent,
     removeOptionalSectionFromBothLocales,
 };
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMarketingMotion, { once: true });
+} else {
+    initMarketingMotion();
+}

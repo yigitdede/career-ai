@@ -50,13 +50,9 @@
             :title="theme === 'dark' ? @js(__('panel.header.theme_light')) : @js(__('panel.header.theme_dark'))"
             :aria-label="theme === 'dark' ? @js(__('panel.header.theme_light')) : @js(__('panel.header.theme_dark'))">
             {{-- Koyu modda: güneş (açık temaya geç) --}}
-            <svg class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-            </svg>
+            <i data-lucide="sun" class="hidden h-5 w-5 dark:block" aria-hidden="true"></i>
             {{-- Açık modda: ay (koyu temaya geç) --}}
-            <svg class="h-5 w-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-            </svg>
+            <i data-lucide="moon" class="h-5 w-5 dark:hidden" aria-hidden="true"></i>
         </button>
 
         <div class="flex items-center gap-1 sm:gap-2"
@@ -84,9 +80,7 @@
                     :aria-expanded="notifOpen"
                     aria-haspopup="true"
                     :aria-label="@js(__('panel.header.notifications'))">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
+                    <i data-lucide="bell" class="h-5 w-5" aria-hidden="true"></i>
                     <span x-show="unreadCount() > 0"
                         class="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white"
                         x-text="unreadCount()"></span>
@@ -120,11 +114,9 @@
                     :aria-expanded="langOpen"
                     aria-haspopup="listbox"
                     :aria-label="@js(__('panel.header.language'))">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
-                    </svg>
+                    <i data-lucide="languages" class="h-5 w-5" aria-hidden="true"></i>
                     <span class="uppercase">{{ $currentLocale }}</span>
-                    <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <i data-lucide="chevron-down" class="h-4 w-4 text-slate-400" aria-hidden="true"></i>
                 </button>
                 <div x-show="langOpen" x-cloak @click.outside="langOpen = false"
                     role="listbox"
@@ -133,13 +125,13 @@
                         class="flex items-center justify-between px-4 py-2 text-sm {{ $currentLocale === 'tr' ? 'bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50' }}"
                         role="option" @if ($currentLocale === 'tr') aria-selected="true" @endif>
                         Türkçe
-                        @if ($currentLocale === 'tr')<span class="text-emerald-500">✓</span>@endif
+                        @if ($currentLocale === 'tr')<i data-lucide="check" class="h-4 w-4 text-emerald-500" aria-hidden="true"></i>@endif
                     </a>
                     <a href="{{ route('panel.locale', 'en') }}"
                         class="flex items-center justify-between px-4 py-2 text-sm {{ $currentLocale === 'en' ? 'bg-slate-100 font-semibold text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50' }}"
                         role="option" @if ($currentLocale === 'en') aria-selected="true" @endif>
                         English
-                        @if ($currentLocale === 'en')<span class="text-emerald-500">✓</span>@endif
+                        @if ($currentLocale === 'en')<i data-lucide="check" class="h-4 w-4 text-emerald-500" aria-hidden="true"></i>@endif
                     </a>
                 </div>
             </div>

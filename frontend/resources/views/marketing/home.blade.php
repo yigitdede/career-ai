@@ -1,54 +1,140 @@
 @extends('marketing.layouts.marketing')
 
 @section('title', __('marketing.home.title'))
+@section('description', __('marketing.home.meta_description'))
 
 @section('content')
-<section class="mx-auto max-w-6xl px-4 py-12 lg:py-20">
-    <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-        <div class="text-center lg:text-left">
-            <p class="mb-4 text-sm font-medium uppercase tracking-widest text-emerald-400">{{ __('marketing.home.eyebrow') }}</p>
-            <h1 class="mb-6 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+<section class="career-hero" data-career-trajectory>
+    <div class="career-hero__glow career-hero__glow--green" aria-hidden="true"></div>
+    <div class="career-hero__glow career-hero__glow--aqua" aria-hidden="true"></div>
+    <div class="marketing-container career-hero__grid">
+        <div class="career-hero__copy" data-reveal="hero">
+            <p class="marketing-kicker">
+                <span aria-hidden="true"></span>
+                {{ __('marketing.home.eyebrow') }}
+            </p>
+            <h1>
                 {{ __('marketing.home.headline') }}
-                <span class="text-emerald-400">{{ __('marketing.home.headline_highlight') }}</span>
+                <span class="career-hero__accent">{{ __('marketing.home.headline_highlight') }}</span>
                 @if(__('marketing.home.headline_end'))
                     {{ __('marketing.home.headline_end') }}
                 @endif
             </h1>
-            <p class="mx-auto mb-8 max-w-xl text-lg leading-relaxed text-slate-400 lg:mx-0">
-                {{ __('marketing.home.subtitle') }}
-            </p>
-            <div class="flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-                <a href="{{ route('register') }}" class="w-full rounded-xl bg-emerald-500 px-8 py-4 text-center text-lg font-semibold text-slate-950 transition hover:bg-emerald-400 sm:w-auto">
+            <p class="career-hero__subtitle">{{ __('marketing.home.subtitle') }}</p>
+
+            <div class="career-hero__actions">
+                <a href="{{ route('register') }}" class="marketing-button marketing-button--primary">
                     {{ __('marketing.home.cta_register') }}
+                    <i data-lucide="arrow-right" aria-hidden="true"></i>
                 </a>
-                <a href="{{ route('how-it-works') }}" class="w-full rounded-xl border border-slate-700 px-8 py-4 text-center text-lg text-slate-300 transition hover:border-slate-500 hover:text-white sm:w-auto">
+                <a href="{{ route('how-it-works') }}" class="marketing-button marketing-button--ghost">
+                    <span class="marketing-button__play" aria-hidden="true">
+                        <i data-lucide="play"></i>
+                    </span>
                     {{ __('marketing.home.cta_how') }}
                 </a>
             </div>
+
+            <ul class="career-hero__signals" aria-label="{{ __('marketing.home.signal_label') }}">
+                <li>{{ __('marketing.home.signal_cv') }}</li>
+                <li>{{ __('marketing.home.signal_role') }}</li>
+                <li>{{ __('marketing.home.signal_plan') }}</li>
+            </ul>
         </div>
-        <div class="mx-auto w-full max-w-md lg:max-w-none">
+
+        <div class="career-hero__visual" data-trajectory-visual data-reveal="visual">
             @include('marketing.partials.panel-preview')
+        </div>
+    </div>
+
+    <div class="marketing-container career-flow-strip" data-reveal>
+        <p>{{ __('marketing.home.flow_title') }}</p>
+        <ol>
+            <li><span>01</span>{{ __('marketing.home.flow_cv') }}</li>
+            <li><span>02</span>{{ __('marketing.home.flow_gap') }}</li>
+            <li><span>03</span>{{ __('marketing.home.flow_plan') }}</li>
+            <li><span>04</span>{{ __('marketing.home.flow_match') }}</li>
+        </ol>
+    </div>
+</section>
+
+<section class="career-journey" id="product-route">
+    <div class="marketing-container career-journey__grid">
+        <div class="career-journey__intro" data-reveal>
+            <p class="marketing-kicker marketing-kicker--dark">
+                <span aria-hidden="true"></span>
+                {{ __('marketing.home.journey_eyebrow') }}
+            </p>
+            <h2>{{ __('marketing.home.journey_title') }}</h2>
+            <p>{{ __('marketing.home.journey_intro') }}</p>
+            <a href="{{ route('features') }}" class="marketing-text-link">
+                {{ __('marketing.home.journey_link') }}
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+            </a>
+        </div>
+
+        <div class="career-journey__steps">
+            <article class="career-step" data-reveal>
+                <div class="career-step__rail" aria-hidden="true"><span></span></div>
+                <div class="career-step__content">
+                    <div class="career-step__topline">
+                        <span>{{ __('marketing.home.step_discover_label') }}</span>
+                        <i data-lucide="file-text" aria-hidden="true"></i>
+                    </div>
+                    <h3>{{ __('marketing.home.feature_cv_title') }}</h3>
+                    <p>{{ __('marketing.home.feature_cv_desc') }}</p>
+                    <strong>{{ __('marketing.home.step_discover_output') }}</strong>
+                </div>
+            </article>
+
+            <article class="career-step career-step--featured" data-reveal>
+                <div class="career-step__rail" aria-hidden="true"><span></span></div>
+                <div class="career-step__content">
+                    <div class="career-step__topline">
+                        <span>{{ __('marketing.home.step_build_label') }}</span>
+                        <i data-lucide="trending-up" aria-hidden="true"></i>
+                    </div>
+                    <h3>{{ __('marketing.home.feature_roadmap_title') }}</h3>
+                    <p>{{ __('marketing.home.feature_roadmap_desc') }}</p>
+                    <strong>{{ __('marketing.home.step_build_output') }}</strong>
+                </div>
+            </article>
+
+            <article class="career-step" data-reveal>
+                <div class="career-step__rail" aria-hidden="true"><span></span></div>
+                <div class="career-step__content">
+                    <div class="career-step__topline">
+                        <span>{{ __('marketing.home.step_match_label') }}</span>
+                        <i data-lucide="briefcase-business" aria-hidden="true"></i>
+                    </div>
+                    <h3>{{ __('marketing.home.feature_match_title') }}</h3>
+                    <p>{{ __('marketing.home.feature_match_desc') }}</p>
+                    <strong>{{ __('marketing.home.step_match_output') }}</strong>
+                </div>
+            </article>
         </div>
     </div>
 </section>
 
-<section class="border-t border-slate-800/60 bg-slate-900/30">
-    <div class="mx-auto grid max-w-6xl gap-6 px-4 py-16 md:grid-cols-3">
-        <article class="rounded-2xl border border-slate-800 bg-slate-900 p-6 transition hover:border-slate-700">
-            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-lg" aria-hidden="true">📄</div>
-            <h2 class="mb-2 text-lg font-semibold">{{ __('marketing.home.feature_cv_title') }}</h2>
-            <p class="text-sm leading-relaxed text-slate-400">{{ __('marketing.home.feature_cv_desc') }}</p>
-        </article>
-        <article class="rounded-2xl border border-slate-800 bg-slate-900 p-6 transition hover:border-slate-700">
-            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-lg" aria-hidden="true">🗺️</div>
-            <h2 class="mb-2 text-lg font-semibold">{{ __('marketing.home.feature_roadmap_title') }}</h2>
-            <p class="text-sm leading-relaxed text-slate-400">{{ __('marketing.home.feature_roadmap_desc') }}</p>
-        </article>
-        <article class="rounded-2xl border border-slate-800 bg-slate-900 p-6 transition hover:border-slate-700">
-            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-lg" aria-hidden="true">🎯</div>
-            <h2 class="mb-2 text-lg font-semibold">{{ __('marketing.home.feature_match_title') }}</h2>
-            <p class="text-sm leading-relaxed text-slate-400">{{ __('marketing.home.feature_match_desc') }}</p>
-        </article>
+<section class="career-cta">
+    <div class="marketing-container">
+        <div class="career-cta__panel" data-reveal>
+            <div class="career-cta__orbit" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="career-cta__copy">
+                <p class="marketing-kicker"><span aria-hidden="true"></span>{{ __('marketing.home.cta_eyebrow') }}</p>
+                <h2>{{ __('marketing.home.cta_title') }}</h2>
+                <p>{{ __('marketing.home.cta_body') }}</p>
+            </div>
+            <div class="career-cta__action">
+                <a href="{{ route('register') }}" class="marketing-button marketing-button--light">
+                    {{ __('marketing.home.cta_button') }}
+                    <i data-lucide="arrow-right" aria-hidden="true"></i>
+                </a>
+                <span>{{ __('marketing.home.cta_note') }}</span>
+            </div>
+        </div>
     </div>
 </section>
 @endsection

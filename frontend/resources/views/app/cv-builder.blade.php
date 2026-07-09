@@ -86,21 +86,15 @@
                 <button type="button" @click="confirmPdfDownload('tr')"
                     class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                     :disabled="pdfExportStatus === 'exporting'">
-                    <svg x-show="pdfExportStatus === 'exporting' && pdfExportingLang === 'tr'" x-cloak
-                        class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
+                    <i data-lucide="loader-circle" x-show="pdfExportStatus === 'exporting' && pdfExportingLang === 'tr'" x-cloak
+                        class="h-4 w-4 animate-spin" aria-hidden="true"></i>
                     <span x-text="uiLabels[panelLocale].pdf_download_tr"></span>
                 </button>
                 <button type="button" @click="confirmPdfDownload('en')"
                     class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-600 px-4 py-3 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
                     :disabled="pdfExportStatus === 'exporting'">
-                    <svg x-show="pdfExportStatus === 'exporting' && pdfExportingLang === 'en'" x-cloak
-                        class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
+                    <i data-lucide="loader-circle" x-show="pdfExportStatus === 'exporting' && pdfExportingLang === 'en'" x-cloak
+                        class="h-4 w-4 animate-spin" aria-hidden="true"></i>
                     <span x-text="uiLabels[panelLocale].pdf_download_en"></span>
                 </button>
                 <button type="button" @click="closePdfModal()"

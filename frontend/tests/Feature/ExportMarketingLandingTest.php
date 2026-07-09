@@ -22,6 +22,8 @@ class ExportMarketingLandingTest extends TestCase
         $this->assertFileExists($output.'/nasil-calisir/index.html');
         $this->assertFileExists($output.'/bootcamp/index.html');
         $this->assertStringContainsString('Gelecek kaygını', File::get($output.'/index.html'));
+        $this->assertStringContainsString('data-career-trajectory', File::get($output.'/index.html'));
+        $this->assertStringContainsString('Kariyer rotanı görünür kıl', File::get($output.'/index.html'));
 
         File::deleteDirectory($output);
     }

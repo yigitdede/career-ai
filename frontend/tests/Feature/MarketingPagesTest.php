@@ -49,7 +49,32 @@ class MarketingPagesTest extends TestCase
         $response->assertSee('Giriş', false);
         $response->assertSee('Öncelikli eksik');
         $response->assertSee('SQL · Tableau · Python');
+        $response->assertSee('Kariyer rotanı görünür kıl');
+        $response->assertSee('CV’den işe uzanan tek rota');
+        $response->assertSee('data-career-trajectory', false);
+        $response->assertSee('data-reveal', false);
+        $response->assertSee('data-lucide="arrow-right"', false);
+        $response->assertSee('data-lucide="file-text"', false);
+        $response->assertSee('data-lucide="menu"', false);
+        $response->assertSee('İçeriğe geç');
         $response->assertDontSee('Panele Git');
+    }
+
+    public function test_marketing_tasarimi_eski_yesil_paleti_kullanir(): void
+    {
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('--marketing-green: #00c98d', $css);
+        $this->assertStringNotContainsString('marketing-violet', $css);
+        $this->assertStringNotContainsString('#7c6cff', $css);
+        $this->assertStringNotContainsString('#a79cff', $css);
+    }
+
+    public function test_marketing_ikonlari_lucide_paketini_kullanir(): void
+    {
+        $package = json_decode(file_get_contents(base_path('package.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertArrayHasKey('lucide', $package['dependencies']);
     }
 
     public function test_meslekler_sayfasi_placeholder(): void
@@ -126,6 +151,8 @@ class MarketingPagesTest extends TestCase
         $response->assertSee('Sign up free');
         $response->assertSee('How it works');
         $response->assertSee('Log in', false);
+        $response->assertSee('Make your career route visible');
+        $response->assertSee('One route from CV to opportunity');
     }
 
     public function test_marketing_locale_switch_route(): void
@@ -154,6 +181,8 @@ class MarketingPagesTest extends TestCase
         $response->assertSee('Google Data Analytics');
         $response->assertSee('CV oluştur');
         $response->assertSee('API bağlı', false);
+        $response->assertSee('data-lucide="layout-dashboard"', false);
+        $response->assertSee('data-lucide="bell"', false);
     }
 
     public function test_panel_kariyer_merdiveni_sayfasi_acilir(): void

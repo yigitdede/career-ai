@@ -13,9 +13,7 @@
                 <button type="button" @click="toggleTask(task)"
                     class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition"
                     :class="task.done ? 'border-emerald-500 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'border-slate-400 dark:border-slate-600'">
-                    <svg x-show="task.done" class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                    </svg>
+                    <i data-lucide="check" x-show="task.done" class="h-3 w-3" aria-hidden="true"></i>
                 </button>
                 <div class="min-w-0 flex-1">
                     <p class="font-medium"

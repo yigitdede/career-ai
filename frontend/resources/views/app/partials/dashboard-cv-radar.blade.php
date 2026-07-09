@@ -19,7 +19,9 @@
     </div>
 
     <section class="panel-card mb-8 border-dashed p-8 text-center" x-show="!hasCv" x-cloak>
-        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl dark:bg-slate-800">📊</div>
+        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-emerald-600 dark:bg-slate-800 dark:text-emerald-400">
+            <i data-lucide="radar" class="h-7 w-7" aria-hidden="true"></i>
+        </div>
         <h2 class="mb-2 text-lg font-semibold" x-text="labels.empty_title"></h2>
         <p class="panel-muted mx-auto mb-4 max-w-md text-sm" x-text="labels.empty_desc"></p>
         <div class="flex flex-wrap justify-center gap-2">

@@ -1,73 +1,22 @@
-@php($icon = $icon ?? 'dashboard')
+@php
+    $lucideIcon = [
+        'dashboard' => 'layout-dashboard',
+        'cv' => 'file-text',
+        'ladder' => 'chart-no-axes-column-increasing',
+        'roadmap' => 'map',
+        'learning' => 'book-open',
+        'jobs' => 'briefcase-business',
+        'radar' => 'radar',
+        'applications' => 'files',
+        'passport' => 'book-user',
+        'interview' => 'messages-square',
+        'mentors' => 'users-round',
+        'cohorts' => 'graduation-cap',
+        'settings' => 'settings',
+        'tasks' => 'list-checks',
+        'chat' => 'message-circle',
+        'profile' => 'user-round',
+    ][$icon ?? 'dashboard'] ?? 'menu';
+@endphp
 
-<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-    @switch($icon)
-        @case('dashboard')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 6a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7zM4 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
-            @break
-        @case('cv')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            @break
-        @case('ladder')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M3 20h18M6 20V10m6 10V4m6 16v-6" />
-            @break
-        @case('roadmap')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            @break
-        @case('learning')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            @break
-        @case('jobs')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            @break
-        @case('radar')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.95-5.95l-2.12 2.12M8.17 15.83l-2.12 2.12m11.9 0l-2.12-2.12M8.17 8.17L6.05 6.05M12 8a4 4 0 100 8 4 4 0 000-8z" />
-            @break
-        @case('applications')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M9 12h6m-6 4h6M8 4h8l2 3v13H6V7l2-3z" />
-            @break
-        @case('passport')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm3 5h4m-5 4h6m-6 4h3" />
-            @break
-        @case('interview')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M8 10h8M8 14h5m-9 6l2.5-4.5A8 8 0 1112 20H4z" />
-            @break
-        @case('mentors')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M16 11a4 4 0 10-8 0m8 0a4 4 0 11-8 0m8 0c2.5.7 4 2.3 4 5v2H4v-2c0-2.7 1.5-4.3 4-5" />
-            @break
-        @case('cohorts')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422A12.083 12.083 0 0118 14.5c0 2.21-2.686 4-6 4s-6-1.79-6-4c0-1.33.49-2.52 1.84-3.922L12 14z" />
-            @break
-        @case('settings')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            @break
-        @case('tasks')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            @break
-        @case('chat')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            @break
-        @case('profile')
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            @break
-        @default
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M4 6h16M4 12h16M4 18h16" />
-    @endswitch
-</svg>
+<i data-lucide="{{ $lucideIcon }}" class="h-4 w-4 shrink-0" aria-hidden="true"></i>
