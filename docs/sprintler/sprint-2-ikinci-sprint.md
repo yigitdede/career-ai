@@ -28,6 +28,8 @@
 | Livewire: eğitim önerileri (filtre: ücretsiz/ücretli, fiyat, sertifika) | Buse | ☐ |
 | `data/learning_resources` seed (örnek Udemy/Coursera/YouTube linkleri) | Yiğit | ☐ |
 | Hazırlık % UI + görsel polish | Bithanya | ☐ |
+| Admin panel layout + rotalar (`/admin/*`) | Buse | ☐ |
+| Admin demo veri + cohort/readiness ekranları | Bithanya | ☐ |
 | `openapi.yaml` v1 (careers, roadmap) | Döne | ☐ |
 
 ### Kabul kriterleri
@@ -85,6 +87,12 @@ _Doldurulacak_
 | Gap / eksik yetenekler | ☐ |
 | Yol haritası | ☐ |
 | Hazırlık % | ☐ |
+| Admin paneli (`/admin`) | ☐ |
+
+### Ekran görüntüsü / video
+
+- Demo URL (hedef): https://careertalent.ygtlabs.ai/admin
+- Sprint 1 görselleri: [sprint-1-ilk-sprint.md](sprint-1-ilk-sprint.md#ürün-durumu-görselleri-sprint-1-teslimi)
 
 ### Mimari karar (Sprint 2 retro)
 
