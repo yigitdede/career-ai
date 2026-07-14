@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Services\CareerTalentApiClient;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -24,6 +25,7 @@ class ProfileController extends PanelController
             'social_links.*.url' => ['required', 'url', 'max:2048'],
         ]);
         $result = $api->updateCareerProfile($validated);
+
         return ($result['ok'] ?? false) ? response()->json($result['body']) : response()->json(['message' => $result['error']], $result['status'] ?? 502);
     }
 
@@ -40,6 +42,7 @@ class ProfileController extends PanelController
         $documents = ($documentsResult['ok'] ?? false) && is_array($documentsResult['body'] ?? null) ? $documentsResult['body'] : [];
         $currentCv = collect($documents)->first(fn ($item) => is_array($item) && ($item['kind'] ?? null) === 'uploaded' && ($item['is_current'] ?? false));
         $history = array_values(array_filter($documents, fn ($item) => is_array($item) && ! ($item['is_current'] ?? false)));
+
         return $this->panelView('app.account', [
             'profile' => $profile,
             'currentCv' => $currentCv,
@@ -49,21 +52,28 @@ class ProfileController extends PanelController
         ]);
     }
 
-    public function archiveCurrent(string $documentId, CareerTalentApiClient $api)
+    public function archiveCurrent(string $documentId, CareerTalentApiClient $api): RedirectResponse
     {
         $result = $api->archiveCurrentCv($documentId);
-        return ($result['ok'] ?? false) ? back()->with('cv_status', __('panel.profile.cv_archived')) : back()->withErrors(['cv' => $result['error'] ?? 'CV arşivlenemedi']);
+
+        return ($result['ok'] ?? false)
+            ? $this->cvTabRedirect()->with('cv_status', __('panel.profile.cv_archived'))
+            : $this->cvTabRedirect()->withErrors(['cv' => $result['error'] ?? 'CV arşivlenemedi']);
     }
 
-    public function destroyCv(string $documentId, CareerTalentApiClient $api)
+    public function destroyCv(string $documentId, CareerTalentApiClient $api): RedirectResponse
     {
         $result = $api->deleteCvDocument($documentId);
-        return ($result['ok'] ?? false) ? back()->with('cv_status', __('panel.profile.cv_deleted')) : back()->withErrors(['cv' => $result['error'] ?? 'CV silinemedi']);
+
+        return ($result['ok'] ?? false)
+            ? $this->cvTabRedirect()->with('cv_status', __('panel.profile.cv_deleted'))
+            : $this->cvTabRedirect()->withErrors(['cv' => $result['error'] ?? 'CV silinemedi']);
     }
 
     public function analyzeCv(string $documentId, CareerTalentApiClient $api): JsonResponse
     {
         $result = $api->analyzeCvDocument($documentId);
+
         return ($result['ok'] ?? false)
             ? response()->json($result['body'], $result['status'] ?? 202)
             : response()->json(['message' => $result['error'] ?? __('panel.profile.cv_analyze_failed')], $result['status'] ?? 502);
@@ -73,9 +83,15 @@ class ProfileController extends PanelController
     {
         $result = $api->downloadCvDocument($documentId);
         abort_unless($result['ok'] ?? false, $result['status'] ?? 404);
+
         return response($result['content'], 200, [
             'Content-Type' => $result['content_type'] ?: 'application/pdf',
             'Content-Disposition' => $result['content_disposition'] ?: 'attachment; filename="cv.pdf"',
         ]);
+    }
+
+    private function cvTabRedirect(): RedirectResponse
+    {
+        return redirect()->to(route('panel.account').'#cv-yukle');
     }
 }

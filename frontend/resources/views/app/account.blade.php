@@ -3,34 +3,44 @@
 @section('title', __('panel.nav.account'))
 
 @section('content')
-<div class="mx-auto max-w-3xl" x-data="{ tab: window.location.hash === '#cv-yukle' ? 'cv' : (window.location.hash === '#abonelik' ? 'abonelik' : (window.location.hash === '#gizlilik' ? 'gizlilik' : @js($initialTab ?? 'profil'))) }">
+<div class="mx-auto max-w-3xl" x-data="{
+    tab: window.location.hash === '#cv-yukle' ? 'cv' : (window.location.hash === '#abonelik' ? 'abonelik' : (window.location.hash === '#gizlilik' ? 'gizlilik' : @js($initialTab ?? 'profil'))),
+    selectTab(nextTab) {
+        this.tab = nextTab;
+        if (nextTab === 'cv') {
+            history.replaceState(null, '', '#cv-yukle');
+        } else if (window.location.hash === '#cv-yukle') {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+    },
+}">
     <header class="mb-8">
         <h1 class="mb-1 text-2xl font-bold">{{ __('panel.nav.account') }}</h1>
         <p class="text-slate-600 dark:text-slate-400">{{ __('panel.account.subtitle') }}</p>
     </header>
 
     <div class="mb-6 flex flex-wrap gap-2 border-b border-slate-200 pb-4 dark:border-slate-800">
-        <button type="button" @click="tab = 'profil'"
+        <button type="button" @click="selectTab('profil')"
             :class="tab === 'profil' ? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'"
             class="rounded-lg px-4 py-2 text-sm">
             {{ __('panel.profile.tab_profile') }}
         </button>
-        <button type="button" @click="tab = 'giris'"
+        <button type="button" @click="selectTab('giris')"
             :class="tab === 'giris' ? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'"
             class="rounded-lg px-4 py-2 text-sm">
             {{ __('panel.profile.tab_login') }}
         </button>
-        <button type="button" @click="tab = 'cv'"
+        <button type="button" @click="selectTab('cv')"
             :class="tab === 'cv' ? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'"
             class="rounded-lg px-4 py-2 text-sm">
             {{ __('panel.profile.tab_cv') }}
         </button>
-        <button type="button" @click="tab = 'abonelik'"
+        <button type="button" @click="selectTab('abonelik')"
             :class="tab === 'abonelik' ? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'"
             class="rounded-lg px-4 py-2 text-sm">
             {{ __('panel.account.tab_subscription') }}
         </button>
-        <button type="button" @click="tab = 'gizlilik'"
+        <button type="button" @click="selectTab('gizlilik')"
             :class="tab === 'gizlilik' ? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'"
             class="rounded-lg px-4 py-2 text-sm">
             {{ __('panel.account.tab_privacy') }}

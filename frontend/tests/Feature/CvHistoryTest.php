@@ -32,6 +32,58 @@ class CvHistoryTest extends TestCase
             ->assertSee('13.07.2026 21:30');
     }
 
+    public function test_cv_tab_selection_updates_hash_and_is_restored_after_reload(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/career/profile' => Http::response(['full_name' => 'User', 'email' => 'user@example.com', 'social_links' => []]),
+            'http://localhost:8000/api/v1/cv/documents' => Http::response([]),
+            'http://localhost:8000/*' => Http::response([]),
+        ]);
+
+        $this->get('/panel/hesap#cv-yukle')->assertOk()
+            ->assertSee("window.location.hash === '#cv-yukle'", false)
+            ->assertSee("selectTab('cv')", false)
+            ->assertSee("history.replaceState(null, '', '#cv-yukle')", false);
+    }
+
+    public function test_archiving_current_cv_redirects_back_to_cv_tab_on_success_and_failure(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/documents/current-1/archive' => Http::response(['id' => 'current-1'], 200),
+        ]);
+
+        $this->post('/panel/hesap/cv-gecmisi/current-1/arsivle')
+            ->assertRedirect('/panel/hesap#cv-yukle')
+            ->assertSessionHas('cv_status');
+
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/documents/current-2/archive' => Http::response(['detail' => 'failed'], 502),
+        ]);
+
+        $this->post('/panel/hesap/cv-gecmisi/current-2/arsivle')
+            ->assertRedirect('/panel/hesap#cv-yukle')
+            ->assertSessionHasErrors('cv');
+    }
+
+    public function test_deleting_history_cv_redirects_back_to_cv_tab_on_success_and_failure(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/documents/history-1' => Http::response([], 204),
+        ]);
+
+        $this->delete('/panel/hesap/cv-gecmisi/history-1')
+            ->assertRedirect('/panel/hesap#cv-yukle')
+            ->assertSessionHas('cv_status');
+
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/documents/history-2' => Http::response(['detail' => 'failed'], 502),
+        ]);
+
+        $this->delete('/panel/hesap/cv-gecmisi/history-2')
+            ->assertRedirect('/panel/hesap#cv-yukle')
+            ->assertSessionHasErrors('cv');
+    }
+
     public function test_generated_pdf_is_archived_before_laravel_returns_success(): void
     {
         Http::fake(['http://localhost:8000/api/v1/cv/documents/generated' => Http::response(['id' => 'generated-1', 'display_name' => 'İlan CV.pdf'], 201)]);
@@ -44,6 +96,7 @@ class CvHistoryTest extends TestCase
 
         Http::assertSent(function ($request): bool {
             $parts = collect($request->data());
+
             return $request->url() === 'http://localhost:8000/api/v1/cv/documents/generated'
                 && $parts->contains(fn ($part) => ($part['name'] ?? null) === 'display_name' && ($part['contents'] ?? null) === 'İlan CV.pdf')
                 && $parts->contains(fn ($part) => ($part['name'] ?? null) === 'language' && ($part['contents'] ?? null) === 'tr');
