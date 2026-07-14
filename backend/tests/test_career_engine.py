@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from pathlib import Path
 
 from PIL import Image
+from sqlalchemy.exc import OperationalError
 
 from app.models.career_engine import CareerAnalysis, CareerTask, CareerTarget, Evidence
 from app.services import career_engine
@@ -46,6 +47,83 @@ def test_cv_text_is_authenticated_and_queued(client, monkeypatch):
     response = client.post("/api/v1/cv/analyze-text", json={"cv_text": "Student Data Analyst SQL Python Excel project experience for two years."}, headers=headers(client))
     assert response.status_code == 202
     assert response.json()["status"] == "queued"
+
+
+def test_cv_database_disconnect_retries_with_exponential_backoff():
+    calls = []
+
+    class RetryTask:
+        request = SimpleNamespace(retries=1)
+
+        def retry(self, *, exc, countdown):
+            calls.append((exc, countdown))
+            raise RuntimeError("retry queued")
+
+    class Session:
+        def __init__(self):
+            self.rolled_back = False
+
+        def rollback(self):
+            self.rolled_back = True
+
+    db = Session()
+    error = OperationalError("UPDATE career_analyses", {}, Exception("connection lost"))
+
+    try:
+        career_tasks.retry_cv_database_disconnect(RetryTask(), db, "analysis-1", error)
+    except RuntimeError as exc:
+        assert str(exc) == "retry queued"
+
+    assert db.rolled_back is True
+    assert calls == [(error, 2)]
+
+
+def test_cv_database_disconnect_marks_analysis_failed_after_last_retry(client, monkeypatch):
+    register(client)
+    override = __import__("app.main", fromlist=["app"]).app.dependency_overrides
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    row = CareerAnalysis(id="database-failed-analysis", user_id=1, status="running", source="upload", cv_text="SQL Python")
+    db.add(row)
+    db.commit()
+    monkeypatch.setattr(career_tasks, "SessionLocal", lambda: db)
+
+    class ExhaustedTask:
+        request = SimpleNamespace(retries=3)
+
+        def retry(self, **_kwargs):
+            raise AssertionError("last retry must not queue another task")
+
+    error = OperationalError("UPDATE career_analyses", {}, Exception("connection lost"))
+    career_tasks.retry_cv_database_disconnect(ExhaustedTask(), db, row.id, error)
+
+    verification_db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    updated = verification_db.get(CareerAnalysis, "database-failed-analysis")
+    assert updated.status == "failed"
+    assert updated.error_code == "database_unavailable"
+    assert "Veritabanı bağlantısı" in updated.error_message
+    verification_db.close()
+
+
+def test_cv_task_routes_operational_error_to_database_retry(monkeypatch):
+    row = CareerAnalysis(id="retry-routed-analysis", user_id=1, status="queued", source="upload", cv_text="SQL Python")
+    calls = []
+
+    class Session:
+        def scalar(self, _query):
+            return row
+
+        def close(self):
+            return None
+
+    error = OperationalError("UPDATE career_analyses", {}, Exception("connection lost"))
+    monkeypatch.setattr(career_tasks, "SessionLocal", Session)
+    monkeypatch.setattr(career_tasks, "analyze_row", lambda _db, _row: (_ for _ in ()).throw(error))
+    monkeypatch.setattr(career_tasks, "retry_cv_database_disconnect", lambda task, db, analysis_id, caught: calls.append((task, db, analysis_id, caught)))
+
+    result = career_tasks.analyze_cv_task.run(row.id)
+
+    assert result == row.id
+    assert calls[0][2:] == (row.id, error)
 
 
 def test_analysis_strict_ai_contains_all_tiers_and_null_current_role(client, monkeypatch):

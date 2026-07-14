@@ -25,7 +25,7 @@ function installBrowserMocks() {
 
 installBrowserMocks();
 
-const { PanelCvStore, PANEL_CV_STORAGE_KEY, panelCvRadar, profileCvUpload } = await import('../../resources/js/panel-cv-store.js');
+const { PanelCvStore, PANEL_CV_STORAGE_KEY, panelCvRadar, pollCvAnalysis, profileCvUpload } = await import('../../resources/js/panel-cv-store.js');
 
 function sampleLocales() {
     return {
@@ -186,5 +186,29 @@ describe('profileCvUpload archived CV analysis', () => {
         assert.equal(state.historyLoadingId, null);
         assert.equal(window.location.href, '');
         assert.equal(PanelCvStore.get(), null);
+    });
+});
+
+describe('pollCvAnalysis', () => {
+    it('keeps polling beyond the former one-minute cutoff when analysis remains queued', async () => {
+        const originalSetTimeout = globalThis.setTimeout;
+        let polls = 0;
+        globalThis.setTimeout = (callback) => {
+            callback();
+            return 0;
+        };
+        globalThis.fetch = async () => {
+            polls += 1;
+            return {
+                ok: true,
+                json: async () => (polls <= 60 ? { status: 'running' } : { status: 'ready', id: 'analysis-after-retry' }),
+            };
+        };
+
+        const result = await pollCvAnalysis('analysis-after-retry', '/status/__ANALYSIS_ID__', 'tr');
+
+        globalThis.setTimeout = originalSetTimeout;
+        assert.equal(polls, 61);
+        assert.equal(result.status, 'ready');
     });
 });

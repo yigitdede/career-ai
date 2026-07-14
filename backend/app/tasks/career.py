@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 from app.celery_app import celery_app
 from app.core.database import SessionLocal
@@ -6,15 +7,47 @@ from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, E
 from app.services.career_engine import analyze_row, plan_target, review_evidence
 from app.services.job_opportunity import analyze_job, apply_suggestions
 
+_CV_DATABASE_RETRY_DELAYS = (1, 2, 4)
+_CV_DATABASE_ERROR_CODE = "database_unavailable"
+_CV_DATABASE_ERROR_MESSAGE = "Veritabanı bağlantısı geçici olarak kesildi. Lütfen CV analizini yeniden dene."
 
-@celery_app.task(name="career.analyze_cv")
-def analyze_cv_task(analysis_id: str) -> str:
+
+def retry_cv_database_disconnect(task, db, analysis_id: str, error: OperationalError) -> None:
+    try:
+        db.rollback()
+    except OperationalError:
+        pass
+
+    retry_count = task.request.retries
+    if retry_count < len(_CV_DATABASE_RETRY_DELAYS):
+        raise task.retry(exc=error, countdown=_CV_DATABASE_RETRY_DELAYS[retry_count])
+
+    failed_db = SessionLocal()
+    try:
+        row = failed_db.scalar(select(CareerAnalysis).where(CareerAnalysis.id == analysis_id))
+        if row is None:
+            return
+        row.status = "failed"
+        row.error_code = _CV_DATABASE_ERROR_CODE
+        row.error_message = _CV_DATABASE_ERROR_MESSAGE
+        failed_db.commit()
+    except OperationalError:
+        failed_db.rollback()
+    finally:
+        failed_db.close()
+
+
+@celery_app.task(bind=True, name="career.analyze_cv", max_retries=len(_CV_DATABASE_RETRY_DELAYS))
+def analyze_cv_task(self, analysis_id: str) -> str:
     db = SessionLocal()
     try:
         row = db.scalar(select(CareerAnalysis).where(CareerAnalysis.id == analysis_id))
         if row is None:
             return analysis_id
         analyze_row(db, row)
+        return analysis_id
+    except OperationalError as error:
+        retry_cv_database_disconnect(self, db, analysis_id, error)
         return analysis_id
     finally:
         db.close()

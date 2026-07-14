@@ -1,4 +1,5 @@
 export const PANEL_CV_STORAGE_KEY = 'panel-cv-state';
+const CV_ANALYSIS_MAX_POLLS = 180;
 
 function formatAnalyzedAt(locale) {
     const d = new Date();
@@ -25,7 +26,7 @@ function writeState(state) {
 
 export async function pollCvAnalysis(analysisId, statusUrl, locale, onProgress = null) {
     const url = statusUrl.replace('__ANALYSIS_ID__', encodeURIComponent(analysisId));
-    for (let attempt = 0; attempt < 60; attempt += 1) {
+    for (let attempt = 0; attempt < CV_ANALYSIS_MAX_POLLS; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 0 : 1000));
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
         const payload = await response.json().catch(() => ({}));
@@ -34,7 +35,7 @@ export async function pollCvAnalysis(analysisId, statusUrl, locale, onProgress =
         if (payload.status === 'ready') return payload;
         if (payload.status === 'failed') throw new Error(payload.error_message || payload.message || 'CV analizi başarısız');
     }
-    throw new Error(locale === 'en' ? 'CV analysis timed out' : 'CV analizi zaman aşımına uğradı');
+    throw new Error(locale === 'en' ? 'CV analysis is still running. Refresh this page to check again.' : 'CV analizi hâlâ sürüyor. Durumu kontrol etmek için sayfayı yenile.');
 }
 
 export const PanelCvStore = {
