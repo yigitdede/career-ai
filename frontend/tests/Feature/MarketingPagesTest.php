@@ -116,22 +116,18 @@ class MarketingPagesTest extends TestCase
         $this->get('/iletisim')->assertStatus(200)->assertSee('İletişim');
     }
 
-    public function test_giris_sayfasi_acilir(): void
+    public function test_giris_sayfasi_panel_girisine_yonlenir(): void
     {
         $this->get('/giris')
-            ->assertStatus(200)
-            ->assertSee('Giriş Yap')
-            ->assertSee('action="'.route('login.submit').'"', false)
-            ->assertDontSee('Demo paneline git');
+            ->assertStatus(301)
+            ->assertRedirect('/panel/login');
     }
 
-    public function test_kayit_sayfasi_acilir(): void
+    public function test_kayit_sayfasi_panel_kaydina_yonlenir(): void
     {
         $this->get('/kayit')
-            ->assertStatus(200)
-            ->assertSee('Kayıt Ol')
-            ->assertSee('Hesap Oluştur')
-            ->assertSee('Şifre Tekrarı');
+            ->assertStatus(301)
+            ->assertRedirect('/panel/register');
     }
 
     public function test_nasil_calisir_sayfasi_acilir(): void

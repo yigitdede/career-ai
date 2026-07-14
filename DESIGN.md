@@ -39,6 +39,17 @@ Global baseline: `/opt/codex-harness/agents/design-memory/GLOBAL_DESIGN.md`
 
 <!-- Structured selection decisions are appended here by design_memory.py. -->
 
+- 2026-07-13 — **A / Rota Çizgisi**: CV → radar → hedef meslek → görev akışını doğrudan anlatıyor. Panel sağ form/emerald, admin sol form/amber ayrımını koruyor. İki bağımsız kör eleştirmenin ortak kazananı; resmi skor `9.10/10`.
+
 ## Rejected directions
 
 <!-- Record why a direction failed, not only that it failed. -->
+
+- **B / Analiz Masası**: Güçlü teknik görünüm; auth görevi için daha yoğun. Kariyer yolculuğu A kadar hızlı okunmuyor.
+- **C / Eşik**: Sakin ve insani; açık editorial yüzey mevcut koyu panel diliyle A kadar doğrudan bağ kurmuyor.
+
+## Auth integration contract
+
+- Canonical: `/panel/login`, `/panel/register`, `/admin/login`.
+- Legacy `/giris` ve `/kayit`: kalıcı yönlendirme.
+- Gerçek backend alanları dışında sahte SSO veya parola kurtarma kontrolü yok.

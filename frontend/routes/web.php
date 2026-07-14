@@ -34,10 +34,16 @@ Route::middleware('marketing.locale')->group(function () {
         Route::get('/iletisim', 'contact')->name('contact');
     });
 
-    Route::get('/giris', [AuthController::class, 'login'])->name('login');
-    Route::post('/giris', [AuthController::class, 'authenticate'])->name('login.submit');
-    Route::get('/kayit', [AuthController::class, 'register'])->name('register');
-    Route::post('/kayit', [AuthController::class, 'store'])->name('register.submit');
+    Route::get('/giris', fn () => redirect()->route('login', status: 301));
+    Route::get('/kayit', fn () => redirect()->route('register', status: 301));
+    Route::post('/giris', [AuthController::class, 'authenticate']);
+    Route::post('/kayit', [AuthController::class, 'store']);
+    Route::get('/panel/login', [AuthController::class, 'login'])->name('login');
+    Route::post('/panel/login', [AuthController::class, 'authenticate'])->name('login.submit');
+    Route::get('/panel/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/panel/register', [AuthController::class, 'store'])->name('register.submit');
+    Route::get('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login');
+    Route::post('/admin/login', [AuthController::class, 'authenticateAdmin'])->name('admin.login.submit');
     Route::post('/cikis', [AuthController::class, 'logout'])->name('logout');
     Route::get('/locale/{locale}', [MarketingLocaleController::class, 'switch'])->name('marketing.locale');
 });

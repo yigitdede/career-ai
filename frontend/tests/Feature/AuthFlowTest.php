@@ -37,7 +37,7 @@ class AuthFlowTest extends TestCase
             '*/api/v1/auth/login' => Http::response(['access_token' => 'jwt-token', 'token_type' => 'bearer']),
         ]);
 
-        $response = $this->post('/kayit', [
+        $response = $this->post('/panel/register', [
             'name' => 'Ayşe Yılmaz',
             'email' => 'ayse@example.com',
             'password' => 'GucluParola123!',
@@ -57,7 +57,7 @@ class AuthFlowTest extends TestCase
             '*/api/v1/auth/me' => Http::response($this->user()),
         ]);
 
-        $response = $this->post('/giris', [
+        $response = $this->post('/panel/login', [
             'email' => 'ayse@example.com',
             'password' => 'GucluParola123!',
         ]);
@@ -69,17 +69,17 @@ class AuthFlowTest extends TestCase
 
     public function test_login_validation_and_api_error_are_shown_without_storing_token(): void
     {
-        $this->post('/giris', ['email' => 'bozuk', 'password' => ''])
+        $this->post('/panel/login', ['email' => 'bozuk', 'password' => ''])
             ->assertSessionHasErrors(['email', 'password']);
 
         Http::fake([
             '*/api/v1/auth/login' => Http::response(['detail' => 'Invalid email or password'], 401),
         ]);
 
-        $this->from('/giris')->post('/giris', [
+        $this->from('/panel/login')->post('/panel/login', [
             'email' => 'ayse@example.com',
             'password' => 'YanlisParola123!',
-        ])->assertRedirect('/giris')->assertSessionHasErrors('email');
+        ])->assertRedirect('/panel/login')->assertSessionHasErrors('email');
 
         $this->assertNull(session('auth.access_token'));
     }
@@ -90,17 +90,17 @@ class AuthFlowTest extends TestCase
             '*/api/v1/auth/register' => Http::response(['detail' => 'Email already registered'], 409),
         ]);
 
-        $this->from('/kayit')->post('/kayit', [
+        $this->from('/panel/register')->post('/panel/register', [
             'name' => 'Ayşe Yılmaz',
             'email' => 'ayse@example.com',
             'password' => 'GucluParola123!',
             'password_confirmation' => 'GucluParola123!',
-        ])->assertRedirect('/kayit')->assertSessionHasErrors('email');
+        ])->assertRedirect('/panel/register')->assertSessionHasErrors('email');
     }
 
     public function test_panel_requires_a_valid_backend_session(): void
     {
-        $this->get('/panel')->assertRedirect('/giris');
+        $this->get('/panel')->assertRedirect('/panel/login');
 
         Http::fake(function ($request) {
             if ($request->hasHeader('Authorization', 'Bearer expired-token')) {
@@ -117,7 +117,7 @@ class AuthFlowTest extends TestCase
 
         $this->withSession(['auth.access_token' => 'expired-token'])
             ->get('/panel')
-            ->assertRedirect('/giris')
+            ->assertRedirect('/panel/login')
             ->assertSessionMissing('auth.access_token');
     }
 
@@ -133,6 +133,57 @@ class AuthFlowTest extends TestCase
         $this->withSession(['auth.access_token' => 'admin-token'])
             ->get('/admin')
             ->assertOk();
+    }
+
+    public function test_admin_login_rejects_non_admin_without_persisting_session(): void
+    {
+        Http::fake([
+            '*/api/v1/auth/login' => Http::response(['access_token' => 'user-token', 'token_type' => 'bearer']),
+            '*/api/v1/auth/me' => Http::response($this->user(false)),
+        ]);
+
+        $this->from('/admin/login')->post('/admin/login', [
+            'email' => 'ayse@example.com',
+            'password' => 'GucluParola123!',
+        ])->assertRedirect('/admin/login')->assertSessionHasErrors('email');
+
+        $this->assertNull(session('auth.access_token'));
+        $this->assertNull(session('auth.user'));
+    }
+
+    public function test_admin_login_accepts_admin_and_redirects_to_admin_panel(): void
+    {
+        Http::fake([
+            '*/api/v1/auth/login' => Http::response(['access_token' => 'admin-token', 'token_type' => 'bearer']),
+            '*/api/v1/auth/me' => Http::response($this->user(true)),
+        ]);
+
+        $this->post('/admin/login', [
+            'email' => 'admin@example.com',
+            'password' => 'GucluParola123!',
+        ])->assertRedirect('/admin')
+            ->assertSessionHas('auth.access_token', 'admin-token')
+            ->assertSessionHas('auth.user.is_admin', true);
+    }
+
+    public function test_admin_login_ignores_a_panel_intended_url(): void
+    {
+        Http::fake([
+            '*/api/v1/auth/login' => Http::response(['access_token' => 'admin-token', 'token_type' => 'bearer']),
+            '*/api/v1/auth/me' => Http::response($this->user(true)),
+        ]);
+
+        $this->withSession(['url.intended' => '/panel'])
+            ->post('/admin/login', [
+                'email' => 'admin@example.com',
+                'password' => 'GucluParola123!',
+            ])->assertRedirect('/admin');
+    }
+
+    public function test_legacy_auth_pages_permanently_redirect_to_panel_routes(): void
+    {
+        $this->get('/giris')->assertStatus(301)->assertRedirect('/panel/login');
+        $this->get('/kayit')->assertStatus(301)->assertRedirect('/panel/register');
     }
 
     public function test_logout_clears_session_and_rotates_csrf_token(): void

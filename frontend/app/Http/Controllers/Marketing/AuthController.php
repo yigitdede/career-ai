@@ -12,15 +12,30 @@ class AuthController extends Controller
 {
     public function login(): View
     {
-        return view('marketing.auth.login');
+        return view('auth.page', ['portal' => 'panel', 'mode' => 'login']);
     }
 
     public function register(): View
     {
-        return view('marketing.auth.register');
+        return view('auth.page', ['portal' => 'panel', 'mode' => 'register']);
+    }
+
+    public function adminLogin(): View
+    {
+        return view('auth.page', ['portal' => 'admin', 'mode' => 'login']);
     }
 
     public function authenticate(Request $request, CareerTalentApiClient $api): RedirectResponse
+    {
+        return $this->attemptLogin($request, $api, false);
+    }
+
+    public function authenticateAdmin(Request $request, CareerTalentApiClient $api): RedirectResponse
+    {
+        return $this->attemptLogin($request, $api, true);
+    }
+
+    private function attemptLogin(Request $request, CareerTalentApiClient $api, bool $admin): RedirectResponse
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -41,9 +56,19 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($admin && ($me['body']['is_admin'] ?? false) !== true) {
+            $request->session()->forget('auth');
+
+            return back()->withInput($request->only('email'))->withErrors([
+                'email' => __('marketing.auth.admin_required'),
+            ]);
+        }
+
         $this->startSession($request, $result['body']['access_token'], $me['body']);
 
-        return redirect()->intended(route('panel.dashboard'));
+        return $admin
+            ? redirect()->route('admin.dashboard')
+            : redirect()->intended(route('panel.dashboard'));
     }
 
     public function store(Request $request, CareerTalentApiClient $api): RedirectResponse
