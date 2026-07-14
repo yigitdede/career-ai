@@ -223,6 +223,7 @@ return [
         'admin_intro' => 'This area is restricted to authorized team members.',
         'panel_submit' => 'Log in to panel',
         'admin_submit' => 'Log in as administrator',
+        'admin_login_link' => 'Administrator login',
         'show_password' => 'Show',
         'hide_password' => 'Hide',
         'back_to_site' => 'Back to site',

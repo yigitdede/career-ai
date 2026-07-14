@@ -17,6 +17,8 @@ class AuthPagesTest extends TestCase
             ->assertSee('YETENEK RADARI')
             ->assertSee('HEDEF MESLEK')
             ->assertSee('GÖREVLER')
+            ->assertSee('Yönetici girişi')
+            ->assertSee('href="'.route('admin.login').'"', false)
             ->assertSee('autocomplete="email"', false)
             ->assertSee('autocomplete="current-password"', false)
             ->assertSee('aria-controls="password"', false)
@@ -54,6 +56,7 @@ class AuthPagesTest extends TestCase
             ->assertSee('Yönetici erişimi')
             ->assertSee('Yönetim alanına giriş')
             ->assertSee('action="'.route('admin.login.submit').'"', false)
+            ->assertSee('href="'.route('login').'"', false)
             ->assertDontSee(route('register'), false)
             ->assertDontSee('marketing-header', false)
             ->assertDontSee('marketing-footer', false);

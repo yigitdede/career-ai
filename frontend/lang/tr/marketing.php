@@ -223,6 +223,7 @@ return [
         'admin_intro' => 'Bu alan yalnız yetkili ekip üyeleri içindir.',
         'panel_submit' => 'Panele giriş yap',
         'admin_submit' => 'Yönetici olarak giriş yap',
+        'admin_login_link' => 'Yönetici girişi',
         'show_password' => 'Göster',
         'hide_password' => 'Gizle',
         'back_to_site' => 'Siteye dön',

@@ -25,6 +25,9 @@
         <div class="top-actions">
             <span>{{ __('marketing.auth.secure_surface') }}</span>
             <span class="portal-badge">{{ $portal === 'admin' ? 'ADMIN' : 'PANEL' }}</span>
+            @if ($portal === 'panel' && $mode === 'login')
+                <a href="{{ route('admin.login') }}">{{ __('marketing.auth.admin_login_link') }}</a>
+            @endif
             <a href="{{ route('home') }}">{{ __('marketing.auth.back_to_site') }}</a>
         </div>
     </header>
