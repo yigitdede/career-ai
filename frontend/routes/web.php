@@ -53,6 +53,10 @@ Route::middleware('marketing.locale')->group(function () {
 Route::prefix('admin')->name('admin.')->middleware(['auth.api', 'auth.api.admin', 'panel.locale'])->group(function () {
     Route::get('/locale/{locale}', [PanelLocaleController::class, 'switch'])->name('locale');
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/kariyer-veri-merkezi', [AdminController::class, 'careerData'])->name('career-data');
+    Route::post('/kariyer-veri-merkezi/{resource}', [AdminController::class, 'storeCareerData'])->name('career-data.store');
+    Route::put('/kariyer-veri-merkezi/{resource}/{record}', [AdminController::class, 'updateCareerData'])->name('career-data.update');
+    Route::delete('/kariyer-veri-merkezi/{resource}/{record}', [AdminController::class, 'destroyCareerData'])->name('career-data.destroy');
     Route::get('/ogrenciler', [AdminController::class, 'students'])->name('students');
     Route::get('/readiness', [AdminController::class, 'readiness'])->name('readiness');
     Route::get('/yetenek-pasaportu', [AdminController::class, 'skillPassport'])->name('skill-passport');

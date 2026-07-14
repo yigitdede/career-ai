@@ -83,6 +83,40 @@ class CareerTalentApiClient
     /**
      * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
      */
+    public function adminCareerData(string $resource): array
+    {
+        return $this->getJson('/api/v1/admin/career-data/'.rawurlencode($resource), 10);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function createAdminCareerData(string $resource, array $payload): array
+    {
+        return $this->postJson('/api/v1/admin/career-data/'.rawurlencode($resource), $payload, 15);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function updateAdminCareerData(string $resource, int $record, array $payload): array
+    {
+        return $this->putJson('/api/v1/admin/career-data/'.rawurlencode($resource).'/'.$record, $payload, 15);
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
+    public function deleteAdminCareerData(string $resource, int $record): array
+    {
+        return $this->deleteJson('/api/v1/admin/career-data/'.rawurlencode($resource).'/'.$record, 15);
+    }
+
+    /**
+     * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
+     */
     public function panel(string $endpoint): array
     {
         return $this->getJson('/api/v1/panel/'.ltrim($endpoint, '/'), 10);
