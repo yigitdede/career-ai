@@ -75,7 +75,8 @@
 
             <template x-for="item in items" :key="item.skill">
                 <article class="panel-card cursor-pointer p-5 transition hover:border-emerald-500/40"
-                    :class="selectedSkill === item.skill ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : ''"
+                    :class="selectedSkill === item.skill ? selectedStatusClass(item.status) : ''"
+                    :data-status="item.status"
                     @click="selectSkill(item.skill)">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div class="min-w-0 flex-1">
@@ -86,7 +87,13 @@
                             </div>
                             <p class="text-sm text-slate-800 dark:text-slate-200" x-text="item.evidence_ref || item.evidence"></p>
                             <p class="panel-muted mt-1 text-xs" x-text="item.impact"></p>
-                            <p x-show="item.feedback && item.status === 'revision'" x-cloak class="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-200" x-text="item.feedback"></p>
+                            <p x-show="item.status === 'missing'" x-cloak class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs font-semibold text-red-700 dark:text-red-200" role="alert">
+                                {{ __('panel.skill_passport.status_missing') }}
+                            </p>
+                            <p x-show="item.status === 'revision'" x-cloak class="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-700 dark:text-red-200" role="alert">
+                                <span class="font-semibold">{{ __('panel.skill_passport.status_missing') }}.</span>
+                                <span x-text="item.feedback || '{{ __('panel.skill_passport.rejected_hint') }}'"></span>
+                            </p>
                         </div>
                         <span class="rounded-xl border border-slate-200 px-3 py-1 text-xs dark:border-slate-700" x-text="item.type"></span>
                     </div>

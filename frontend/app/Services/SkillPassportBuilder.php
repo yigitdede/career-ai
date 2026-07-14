@@ -13,6 +13,7 @@ class SkillPassportBuilder
     {
         $radar = is_array($analysis['radar'] ?? null) ? $analysis['radar'] : [];
         $verifiedSkills = $this->verifiedSkills($tasks);
+        $cvVerifiedSkills = $this->cvVerifiedSkills($analysis);
         $items = [];
 
         foreach ($radar as $skill) {
@@ -24,20 +25,26 @@ class SkillPassportBuilder
             $score = (int) ($skill['score'] ?? 0);
             $target = (int) ($skill['target'] ?? 0);
             $task = $this->taskForSkill($tasks, $label);
-            $status = $this->skillStatus($label, $score, $target, $task, $verifiedSkills);
+            $status = $this->skillStatus($label, $task, $verifiedSkills, $cvVerifiedSkills);
+            $verifiedByTask = is_array($task) && $this->taskHasVerifiedEvidence($task);
+            $verifiedByCv = in_array(mb_strtolower($label), $cvVerifiedSkills, true);
 
             $items[] = [
                 'skill' => $label,
                 'level' => '%'.$score,
                 'score' => $score,
                 'target' => $target,
-                'evidence' => $status === 'verified'
+                'evidence' => $verifiedByTask
                     ? (string) (($task['title'] ?? '') ?: 'AI kanıt incelemesi')
+                    : ($verifiedByCv
+                        ? 'AI CV analizi'
                     : (is_array($task) && ($task['title'] ?? '') !== ''
                         ? (string) $task['title']
-                        : ($score >= $target ? 'AI CV analizi' : 'CV analizi · gap')),
-                'impact' => 'Hedef: %'.$target,
-                'type' => $status === 'verified' ? 'AI evidence' : 'AI radar',
+                        : 'CV analizi · kanıt bekliyor')),
+                'impact' => $verifiedByCv && ! $verifiedByTask
+                    ? 'CV taramasında doğrulandı'
+                    : $this->taskImpact($status, $target),
+                'type' => $verifiedByTask ? 'AI evidence' : ($verifiedByCv ? 'AI CV' : 'AI radar'),
                 'status' => $status,
                 'task_id' => is_array($task) ? ($task['id'] ?? null) : null,
                 'task_title' => is_array($task) ? (string) ($task['title'] ?? '') : '',
@@ -46,7 +53,7 @@ class SkillPassportBuilder
         }
 
         foreach ($tasks as $task) {
-            if (! is_array($task) || ! $this->taskHasVerifiedEvidence($task)) {
+            if (! is_array($task)) {
                 continue;
             }
 
@@ -56,15 +63,21 @@ class SkillPassportBuilder
                     continue;
                 }
 
+                $status = $this->skillStatus($label, $task, $verifiedSkills, $cvVerifiedSkills);
+
                 $items[] = [
                     'skill' => $label,
-                    'level' => '%100',
-                    'score' => 100,
+                    'level' => $status === 'verified' ? '%100' : '%0',
+                    'score' => $status === 'verified' ? 100 : 0,
                     'target' => 100,
                     'evidence' => (string) ($task['title'] ?? ''),
-                    'impact' => 'AI kanıt incelemesi tamamlandı',
-                    'type' => 'AI evidence',
-                    'status' => 'verified',
+                    'impact' => in_array(mb_strtolower($label), $cvVerifiedSkills, true)
+                        ? 'CV taramasında doğrulandı'
+                        : $this->taskImpact($status),
+                    'type' => $status === 'verified'
+                        ? (in_array(mb_strtolower($label), $verifiedSkills, true) ? 'AI evidence' : 'AI CV')
+                        : 'AI radar',
+                    'status' => $status,
                     'task_id' => $task['id'] ?? null,
                     'task_title' => (string) ($task['title'] ?? ''),
                     'feedback' => $task['feedback'] ?? null,
@@ -115,6 +128,23 @@ class SkillPassportBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $analysis
+     * @return list<string>
+     */
+    private function cvVerifiedSkills(array $analysis): array
+    {
+        $skills = [];
+        foreach (is_array($analysis['skills'] ?? null) ? $analysis['skills'] : [] as $skill) {
+            $name = is_array($skill) ? ($skill['name'] ?? null) : $skill;
+            if (is_string($name) && trim($name) !== '') {
+                $skills[] = mb_strtolower(trim($name));
+            }
+        }
+
+        return array_values(array_unique($skills));
+    }
+
+    /**
      * @param  array<string, mixed>  $task
      */
     private function taskHasVerifiedEvidence(array $task): bool
@@ -154,9 +184,10 @@ class SkillPassportBuilder
     /**
      * @param  list<string>  $verifiedSkills
      */
-    private function skillStatus(string $skill, int $score, int $target, ?array $task, array $verifiedSkills): string
+    private function skillStatus(string $skill, ?array $task, array $verifiedSkills, array $cvVerifiedSkills): string
     {
-        if (in_array(mb_strtolower($skill), $verifiedSkills, true)) {
+        if (in_array(mb_strtolower($skill), $verifiedSkills, true)
+            || in_array(mb_strtolower($skill), $cvVerifiedSkills, true)) {
             return 'verified';
         }
 
@@ -171,18 +202,18 @@ class SkillPassportBuilder
                 return 'revision';
             }
 
-            if (($task['evidence_pending'] ?? false) || in_array($status, ['reviewing', 'queued'], true)) {
+            if (($task['evidence_pending'] ?? false) || (($task['has_evidence'] ?? false) && ! $this->taskHasVerifiedEvidence($task)) || in_array($status, ['reviewing', 'queued'], true)) {
                 return 'review';
             }
 
-            if (($task['has_evidence'] ?? false) && $status === 'pending') {
-                return 'review';
+            if ($status === 'completed') {
+                return 'waiting';
             }
 
-            return 'waiting';
+            return 'missing';
         }
 
-        return $score >= $target ? 'waiting' : 'missing';
+        return 'missing';
     }
 
     /**
@@ -198,5 +229,16 @@ class SkillPassportBuilder
         }
 
         return false;
+    }
+
+    private function taskImpact(string $status, ?int $target = null): string
+    {
+        return match ($status) {
+            'verified' => 'AI kanıt incelemesi tamamlandı',
+            'review' => 'AI kanıt incelemesi sürüyor',
+            'revision' => 'Kanıt eksik',
+            'waiting' => 'Görev tamamlandı · kanıt bekleniyor',
+            default => $target === null ? 'Kanıt eksik' : 'Hedef: %'.$target.' · Kanıt eksik',
+        };
     }
 }

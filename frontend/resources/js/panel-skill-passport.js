@@ -82,10 +82,23 @@ export function skillPassport(initialItems, evidenceUrlTemplate, statusUrlTempla
             if (status === 'waiting') {
                 return 'bg-amber-500/15 text-amber-800 dark:text-amber-200';
             }
-            if (status === 'revision') {
+            if (status === 'revision' || status === 'missing') {
                 return 'bg-red-500/15 text-red-700 dark:text-red-300';
             }
             return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+        },
+
+        selectedStatusClass(status) {
+            if (status === 'verified') {
+                return 'border-emerald-500/60 ring-1 ring-emerald-500/30';
+            }
+            if (status === 'review') {
+                return 'border-sky-500/60 ring-1 ring-sky-500/30';
+            }
+            if (status === 'waiting') {
+                return 'border-amber-500/60 ring-1 ring-amber-500/30';
+            }
+            return 'border-red-500/60 ring-1 ring-red-500/30';
         },
 
         canUpload(item) {
@@ -122,14 +135,16 @@ export function skillPassport(initialItems, evidenceUrlTemplate, statusUrlTempla
             if (task.feedback !== undefined) {
                 item.feedback = task.feedback;
             }
-            if (task.evidence_verified || task.status === 'accepted') {
+            if (task.evidence_verified || (task.has_evidence && task.status === 'accepted')) {
                 item.status = 'verified';
             } else if (task.status === 'revision_required') {
                 item.status = 'revision';
+            } else if (task.evidence_pending || task.has_evidence || ['reviewing', 'queued'].includes(task.status)) {
+                item.status = 'review';
             } else if (task.status === 'completed') {
                 item.status = 'waiting';
             } else if (task.status) {
-                item.status = task.evidence_pending || task.has_evidence ? 'review' : 'waiting';
+                item.status = 'missing';
             }
         },
 
@@ -234,17 +249,19 @@ export function skillPassport(initialItems, evidenceUrlTemplate, statusUrlTempla
                     return;
                 }
                 const payload = await response.json().catch(() => ({}));
-                if (payload.evidence_verified || payload.status === 'accepted') {
+                if (payload.evidence_verified || (payload.has_evidence && payload.status === 'accepted')) {
                     item.status = 'verified';
                     item.score = Math.max(item.score || 0, item.target || 0);
                     item.level = `%${item.score}`;
                     item.type = 'AI evidence';
                 } else if (payload.status === 'revision_required') {
                     item.status = 'revision';
+                } else if (payload.evidence_pending || payload.has_evidence || ['reviewing', 'queued'].includes(payload.status)) {
+                    item.status = 'review';
                 } else if (payload.status === 'completed') {
                     item.status = 'waiting';
                 } else if (payload.status) {
-                    item.status = payload.evidence_pending || payload.has_evidence ? 'review' : 'waiting';
+                    item.status = 'missing';
                 }
                 if (payload.feedback !== undefined) {
                     item.feedback = payload.feedback;
