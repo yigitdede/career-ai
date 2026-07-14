@@ -9,10 +9,10 @@ use Tests\TestCase;
 class PanelCareerTargetTest extends TestCase
 {
     /** @param list<array<string, mixed>> $roles */
-    private function fakeCareerApi(array $roles = []): void
+    private function fakeCareerApi(array $roles = [], string $targetStatus = 'active'): void
     {
         $target = null;
-        Http::fake(function (Request $request) use (&$target, $roles) {
+        Http::fake(function (Request $request) use (&$target, $roles, $targetStatus) {
             $url = $request->url();
             if (str_ends_with($url, '/health')) {
                 return Http::response(['status' => 'ok'], 200);
@@ -22,15 +22,38 @@ class PanelCareerTargetTest extends TestCase
             }
             if (str_ends_with($url, '/api/v1/career/targets') && $request->method() === 'POST') {
                 $data = $request->data();
-                $target = ['id' => 'target-1', 'title' => $data['title'], 'source' => $data['source'], 'status' => 'active', 'plan' => []];
+                $target = ['id' => 'target-1', 'title' => $data['title'], 'source' => $data['source'], 'status' => $targetStatus, 'plan' => []];
                 return Http::response($target, 202);
             }
             if (str_ends_with($url, '/api/v1/career/targets')) {
                 return Http::response($target ? [$target] : [], 200);
             }
+            if (str_ends_with($url, '/api/v1/career/targets/target-1')) {
+                return Http::response($target ?? ['id' => 'target-1', 'title' => 'Target', 'status' => 'queued', 'plan' => []], 200);
+            }
             if (str_contains($url, '/api/v1/career/targets/target-1/tasks')) {
+                if (($target['status'] ?? null) === 'queued') {
+                    return Http::response([], 200);
+                }
                 return Http::response([
                     ['id' => 'task-1', 'target_id' => 'target-1', 'title' => 'AI gap kanıtı', 'hint' => 'AI görev ipucu', 'status' => 'pending', 'evidence_required' => true, 'evidence_types' => ['link', 'file'], 'skill_impacts' => ['Python'], 'training_suggestions' => [['catalog_id' => 'python-data', 'title' => 'Python for Everybody', 'provider' => 'Coursera', 'url' => 'https://www.py4e.com/', 'skills' => ['Python']]], 'feedback' => null],
+                ], 200);
+            }
+            if (preg_match('#/api/v1/career/tasks/([^/]+)$#', $url) === 1 && $request->method() === 'PATCH') {
+                $data = $request->data();
+
+                return Http::response([
+                    'id' => 'task-1',
+                    'target_id' => 'target-1',
+                    'title' => 'AI gap kanıtı',
+                    'hint' => 'AI görev ipucu',
+                    'note' => '',
+                    'status' => $data['status'] ?? 'pending',
+                    'evidence_required' => true,
+                    'evidence_types' => ['link', 'file'],
+                    'skill_impacts' => ['Python'],
+                    'training_suggestions' => [],
+                    'feedback' => null,
                 ], 200);
             }
             if (str_contains($url, '/api/v1/panel/job-listings/parse')) {
@@ -76,13 +99,51 @@ class PanelCareerTargetTest extends TestCase
         $this->post(route('panel.career-ladder.select'), ['mode' => 'role', 'role_id' => 'data-scientist'])
             ->assertRedirect(route('panel.roadmap'));
 
-        $this->get(route('panel.roadmap'))
+        $response = $this->get(route('panel.roadmap'));
+        $response
             ->assertOk()
             ->assertSee('panel-card-ladder-selected', false)
             ->assertSee('panel-card-ladder-collapsed', false)
             ->assertSee('panel-btn-ladder-selected', false)
             ->assertSee(__('panel.career_ladder.role_selected'), false)
+            ->assertSee('data-selected-role-id="data-scientist"', false)
+            ->assertSee('data-swot-toggleable="true"', false)
+            ->assertSee('expandedRoles[', false)
+            ->assertSee('careerPlanWatcher', false)
             ->assertSee('Deep learning', false);
+        $response->assertSeeInOrder(['id="kariyer-merdiveni"', 'id="gorevler"'], false);
+    }
+
+    public function test_queued_target_shows_ai_plan_progress_and_watcher(): void
+    {
+        $roles = [[
+            'id' => 'ml-engineer', 'tier' => 'C', 'title' => 'ML Engineer', 'readiness' => 35,
+            'swot' => ['strengths' => ['Python'], 'weaknesses' => ['ML'], 'opportunities' => [], 'threats' => []],
+        ]];
+        $this->fakeCareerApi($roles, 'queued');
+
+        $this->post(route('panel.career-ladder.select'), ['mode' => 'role', 'role_id' => 'ml-engineer'])->assertRedirect();
+        $this->get(route('panel.roadmap'))
+            ->assertOk()
+            ->assertSee('careerPlanWatcher', false)
+            ->assertSee(__('panel.roadmap.plan_generating'), false)
+            ->assertDontSee(__('panel.dashboard.tasks_empty'), false);
+    }
+
+    public function test_plan_status_proxy_returns_current_target_state_and_task_count(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/career/targets/target-live' => Http::response(['id' => 'target-live', 'title' => 'ML Engineer', 'status' => 'active', 'plan' => []], 200),
+            'http://localhost:8000/api/v1/career/targets/target-live/tasks' => Http::response([
+                ['id' => 'task-ml', 'title' => 'ML portfolyosu', 'training_suggestions' => [['catalog_id' => 'python-data']]],
+            ], 200),
+        ]);
+
+        $this->getJson(route('panel.roadmap.plan-status', ['targetId' => 'target-live']))
+            ->assertOk()
+            ->assertJsonPath('target_id', 'target-live')
+            ->assertJsonPath('status', 'active')
+            ->assertJsonPath('task_count', 1);
     }
 
     public function test_roadmap_ladder_is_active_before_target_selection(): void
@@ -108,8 +169,69 @@ class PanelCareerTargetTest extends TestCase
             ->assertOk()
             ->assertSee('panel-card-ladder-active', false)
             ->assertSee(__('panel.career_ladder.select_role'), false)
-            ->assertSee(__('panel.career_ladder.swot_show'), false)
+            ->assertSee('data-swot-default-open="true"', false)
+            ->assertSee('SQL', false)
+            ->assertSee('Cloud', false)
+            ->assertSee('Bootcamp', false)
+            ->assertSee('Competition', false)
+            ->assertDontSee('data-swot-toggleable="true"', false)
             ->assertDontSee('panel-btn-ladder-selected', false);
+    }
+
+    public function test_selecting_another_role_moves_the_fixed_open_state(): void
+    {
+        $roles = [
+            ['id' => 'role-a', 'tier' => 'A', 'title' => 'Role A', 'readiness' => 80, 'swot' => ['strengths' => ['A1'], 'weaknesses' => [], 'opportunities' => [], 'threats' => []]],
+            ['id' => 'role-b', 'tier' => 'B', 'title' => 'Role B', 'readiness' => 60, 'swot' => ['strengths' => ['B1'], 'weaknesses' => [], 'opportunities' => [], 'threats' => []]],
+        ];
+        $this->fakeCareerApi($roles);
+
+        $this->post(route('panel.career-ladder.select'), ['mode' => 'role', 'role_id' => 'role-a'])->assertRedirect();
+        $this->get(route('panel.roadmap'))->assertSee('data-selected-role-id="role-a"', false);
+        $this->post(route('panel.career-ladder.select'), ['mode' => 'role', 'role_id' => 'role-b'])->assertRedirect();
+        $this->get(route('panel.roadmap'))
+            ->assertSee('data-selected-role-id="role-b"', false)
+            ->assertDontSee('data-selected-role-id="role-a"', false);
+    }
+
+    public function test_tasks_page_shows_baseline_readiness_when_no_tasks_are_completed(): void
+    {
+        $this->fakeCareerApi([
+            [
+                'id' => 'cto',
+                'tier' => 'C',
+                'title' => 'Chief Technology Officer (CTO)',
+                'readiness' => 20,
+                'swot' => ['strengths' => ['Leadership'], 'weaknesses' => ['Cloud'], 'opportunities' => [], 'threats' => []],
+            ],
+        ]);
+
+        $this->post(route('panel.career-ladder.select'), ['mode' => 'role', 'role_id' => 'cto'])
+            ->assertRedirect(route('panel.roadmap'));
+
+        $this->get(route('panel.tasks'))
+            ->assertOk()
+            ->assertSee('id="ozet"', false)
+            ->assertSee(__('panel.dashboard.readiness_hybrid_hint', ['baseline' => 20]), false)
+            ->assertSee('x-text="\'%\' + readiness"', false)
+            ->assertSee(', 20)', false);
+    }
+
+    public function test_tasks_page_allows_ai_task_checkbox_without_evidence_form(): void
+    {
+        $this->fakeCareerApi([[
+            'id' => 'cfo', 'tier' => 'C', 'title' => 'Chief Financial Officer', 'readiness' => 40,
+            'swot' => ['strengths' => ['Finance'], 'weaknesses' => [], 'opportunities' => [], 'threats' => []],
+        ]]);
+
+        $this->post(route('panel.career-ladder.select'), ['mode' => 'role', 'role_id' => 'cfo'])
+            ->assertRedirect(route('panel.roadmap'));
+
+        $this->get(route('panel.tasks'))
+            ->assertOk()
+            ->assertSee('statusUpdate', false)
+            ->assertDontSee(':disabled="task.source === \'ai\'"', false)
+            ->assertDontSee('submitEvidence(task)', false);
     }
 
     public function test_selecting_ladder_role_redirects_to_role_based_roadmap_and_tasks(): void

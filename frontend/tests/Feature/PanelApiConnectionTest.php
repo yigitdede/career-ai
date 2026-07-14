@@ -7,6 +7,26 @@ use Tests\TestCase;
 
 class PanelApiConnectionTest extends TestCase
 {
+    public function test_engagement_actions_use_real_career_api_contracts(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/career/chat' => Http::response(['id' => 'a1', 'role' => 'assistant', 'content' => 'AI cevap', 'meta' => []], 201),
+            'http://localhost:8000/api/v1/career/interviews' => Http::response(['id' => 'i1', 'questions' => []], 201),
+            'http://localhost:8000/api/v1/career/interviews/i1/answers' => Http::response(['score' => 80, 'feedback' => 'İyi'], 201),
+            'http://localhost:8000/api/v1/career/applications' => Http::response(['id' => 'app1', 'stage' => 'applied'], 201),
+            'http://localhost:8000/api/v1/career/profile' => Http::response(['full_name' => 'Gerçek Kullanıcı', 'email' => 'user@example.com', 'social_links' => []], 200),
+        ]);
+
+        $this->postJson('/panel/ai-yardimcisi', ['message' => 'Kariyer planım nedir?'])->assertCreated()->assertJsonPath('content', 'AI cevap');
+        $this->postJson('/panel/mulakat-hazirligi')->assertCreated()->assertJsonPath('id', 'i1');
+        $this->postJson('/panel/mulakat-hazirligi/i1/cevap', ['question_id' => 'q1', 'answer' => 'Somut bir projede sorguyu optimize ederek süreyi düşürdüm.'])->assertCreated()->assertJsonPath('score', 80);
+        $this->postJson('/panel/basvurularim', ['company' => 'Acme', 'role' => 'Analyst'])->assertCreated()->assertJsonPath('stage', 'applied');
+        $this->putJson('/panel/hesap/profil', ['full_name' => 'Gerçek Kullanıcı', 'phone' => null, 'location' => null, 'headline' => null, 'linkedin' => null, 'social_links' => []])->assertOk()->assertJsonPath('full_name', 'Gerçek Kullanıcı');
+
+        Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/career/chat' && $request['message'] === 'Kariyer planım nedir?');
+        Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/career/applications' && $request['company'] === 'Acme');
+    }
+
     public function test_dashboard_uses_fastapi_panel_payload(): void
     {
         $task = ['id' => 'api-task-1', 'target_id' => 'target-1', 'title' => 'API görevini tamamla', 'hint' => 'FastAPI kariyer verisi', 'status' => 'pending', 'evidence_required' => true, 'evidence_types' => ['link'], 'skill_impacts' => ['API'], 'training_suggestions' => [['catalog_id' => 'api-course', 'title' => 'API Kaynak Kursu', 'provider' => 'FastAPI Academy', 'url' => 'https://example.com/api-course', 'skills' => ['API']]], 'feedback' => null];
@@ -33,21 +53,16 @@ class PanelApiConnectionTest extends TestCase
             'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
             'http://localhost:8000/api/v1/career/analysis/current' => Http::response(['status' => 'ready', 'current_role' => 'API', 'radar' => [['label' => 'API Kanıt Yeteneği', 'score' => 84, 'target' => 90]], 'career_ladder' => []], 200),
             'http://localhost:8000/api/v1/career/targets' => Http::response([], 200),
-            'http://localhost:8000/api/v1/panel/chat' => Http::response([
-                'assistant' => [
-                    'prompts' => [[
-                        'q' => 'API asistan mesajı',
-                        'a' => 'API hızlı cevap',
-                    ]],
-                ],
-            ], 200),
+            'http://localhost:8000/api/v1/career/chat' => Http::response([[
+                'id' => 'chat-1', 'role' => 'assistant', 'content' => 'API asistan mesajı', 'meta' => [],
+            ]], 200),
             'http://localhost:8000/*' => Http::response([], 200),
         ]);
 
         $this->get('/panel/yetenek-pasaportu')->assertOk()->assertSee('API Kanıt Yeteneği', false);
         $this->get('/panel/ai-yardimcisi')->assertOk()->assertSee('API asistan mesajı', false);
 
-        Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/panel/chat');
+        Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/career/chat');
     }
 
     public function test_job_match_analyze_posts_to_fastapi(): void

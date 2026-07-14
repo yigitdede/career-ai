@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Services\CareerTalentApiClient;
 use App\Services\PanelTargetRoleStore;
+use App\Services\TaskReadinessCalculator;
 
 class DashboardController extends PanelController
 {
@@ -26,14 +27,18 @@ class DashboardController extends PanelController
         if ($radar !== [] && ! empty($target['title'])) {
             $radar['target_role'] = (string) $target['title'];
         }
-        $readiness = $this->readiness($analysisReady ? $analysis : null, $target);
+        $readinessStats = TaskReadinessCalculator::summary($tasks, $target, $analysisReady ? $analysis : null);
         $resources = $this->trainingResources($tasks);
         $status = $analysis['error_message'] ?? ($analysisResult['error'] ?? (($analysis['status'] ?? null) ?: 'empty'));
 
         return $this->panelView('app.dashboard', [
             'stats' => [
                 'career' => (string) ($target['title'] ?? ($analysis['current_role'] ?? '')),
-                'readiness' => $readiness,
+                'readiness' => $readinessStats['readiness'],
+                'baseline' => $readinessStats['baseline'],
+                'target_ready' => $readinessStats['target_ready'],
+                'done' => $readinessStats['done'],
+                'total' => $readinessStats['total'],
             ],
             'weeklyTasks' => $tasks,
             'learningResources' => $resources,
@@ -80,28 +85,12 @@ class DashboardController extends PanelController
             'skills' => $skills,
             'target_role' => (string) ($analysis['current_role'] ?? ''),
             'analyzed_at' => (string) ($analysis['created_at'] ?? ''),
+            'analysis_id' => (string) ($analysis['id'] ?? ''),
+            'file_name' => (string) ($analysis['file_name'] ?? 'cv'),
+            'source' => (string) ($analysis['source'] ?? ''),
+            'cv_document_id' => (string) ($analysis['cv_document_id'] ?? ''),
             'overall_match' => (int) round(array_sum(array_column($skills, 'score')) / count($skills)),
         ];
-    }
-
-    /** @param array<string, mixed>|null $analysis */
-    private function readiness(?array $analysis, ?array $target): int
-    {
-        if (! $analysis) {
-            return 0;
-        }
-
-        $roles = is_array($analysis['career_ladder'] ?? null) ? $analysis['career_ladder'] : [];
-        if ($target && ! empty($target['title'])) {
-            foreach ($roles as $role) {
-                if (is_array($role) && ($role['title'] ?? null) === $target['title']) {
-                    return (int) ($role['readiness'] ?? 0);
-                }
-            }
-        }
-        $scores = array_values(array_filter(array_map(static fn ($role) => is_array($role) ? (int) ($role['readiness'] ?? 0) : null, $roles), static fn ($score) => $score !== null));
-
-        return $scores === [] ? 0 : max($scores);
     }
 
     /** @param list<array<string, mixed>> $tasks */

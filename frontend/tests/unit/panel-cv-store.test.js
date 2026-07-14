@@ -25,7 +25,7 @@ function installBrowserMocks() {
 
 installBrowserMocks();
 
-const { PanelCvStore, PANEL_CV_STORAGE_KEY, panelCvRadar } = await import('../../resources/js/panel-cv-store.js');
+const { PanelCvStore, PANEL_CV_STORAGE_KEY, panelCvRadar, profileCvUpload } = await import('../../resources/js/panel-cv-store.js');
 
 function sampleLocales() {
     return {
@@ -142,5 +142,49 @@ describe('panelCvRadar career reset', () => {
         assert.equal(state.resetWorking, false);
         assert.notEqual(PanelCvStore.get(), null);
         assert.equal(reloads, 0);
+    });
+});
+
+describe('profileCvUpload archived CV analysis', () => {
+    beforeEach(() => {
+        storage.clear();
+        window.location.href = '';
+    });
+
+    it('starts a fresh analysis, polls it and activates its exact CV metadata', async () => {
+        const requests = [];
+        globalThis.fetch = async (url, options = {}) => {
+            requests.push({ url, options });
+            if (options.method === 'POST') {
+                return { ok: true, json: async () => ({ analysis_id: 'analysis-123', status: 'queued' }) };
+            }
+            return { ok: true, json: async () => ({
+                id: 'analysis-123', status: 'ready', file_name: 'İlan CV.pdf', created_at: '2026-07-13T22:56:42Z',
+                current_role: 'Veri Analisti', radar: [{ label: 'SQL', score: 72, target: 80 }],
+            }) };
+        };
+        const state = profileCvUpload('tr', '/upload', '/status/__ANALYSIS_ID__', '/panel/kariyer-rotam', '/history/__DOCUMENT_ID__/analyze');
+
+        await state.analyzeHistory('document-7');
+
+        assert.equal(requests[0].url, '/history/document-7/analyze');
+        assert.equal(requests[0].options.method, 'POST');
+        assert.equal(requests[0].options.headers['X-CSRF-TOKEN'], 'csrf-token');
+        assert.equal(requests[1].url, '/status/analysis-123');
+        assert.equal(PanelCvStore.get().fileName, 'İlan CV.pdf');
+        assert.equal(PanelCvStore.get().skillRadar.skills[0].label, 'SQL');
+        assert.equal(window.location.href, '/panel/kariyer-rotam');
+    });
+
+    it('keeps the user on history and shows the API error when activation fails', async () => {
+        globalThis.fetch = async () => ({ ok: false, json: async () => ({ message: 'CV okunamadı' }) });
+        const state = profileCvUpload('tr', '/upload', '/status/__ANALYSIS_ID__', '/panel', '/history/__DOCUMENT_ID__/analyze');
+
+        await state.analyzeHistory('document-8');
+
+        assert.equal(state.error, 'CV okunamadı');
+        assert.equal(state.historyLoadingId, null);
+        assert.equal(window.location.href, '');
+        assert.equal(PanelCvStore.get(), null);
     });
 });

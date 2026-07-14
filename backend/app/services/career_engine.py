@@ -25,16 +25,9 @@ from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, E
 from app.models.user import User
 from app.schemas.career import CareerAnalysisAI, CareerPlanAI, EvidenceReviewAI
 from app.services.ai_factory import AIOutputError, AIProviderError, AIUnavailableError, ai_configured, create_chat_model
+from app.services.education_search import TrainingSearchUnavailable, search_training
 
 T = TypeVar("T", bound=BaseModel)
-
-TRAINING_CATALOG = [
-    {"catalog_id": "sqlbolt", "title": "SQLBolt Interactive SQL", "provider": "SQLBolt", "url": "https://sqlbolt.com/", "skills": ["SQL"]},
-    {"catalog_id": "python-data", "title": "Python for Everybody", "provider": "Coursera", "url": "https://www.py4e.com/", "skills": ["Python", "Pandas"]},
-    {"catalog_id": "power-bi", "title": "Power BI Learning Path", "provider": "Microsoft Learn", "url": "https://learn.microsoft.com/training/powerplatform/power-bi", "skills": ["Power BI", "DAX"]},
-    {"catalog_id": "tableau", "title": "Tableau Training", "provider": "Tableau", "url": "https://www.tableau.com/learn/training", "skills": ["Tableau", "Dashboard"]},
-]
-
 
 def _invoke(prompt: str, schema: type[T]) -> T:
     if not ai_configured():
@@ -71,8 +64,20 @@ def _invoke(prompt: str, schema: type[T]) -> T:
         raise AIProviderError("AI sağlayıcısından kariyer yanıtı alınamadı") from exc
 
 
-def create_analysis(db: Session, user_id: int, cv_text: str, source: str, file_name: str | None) -> CareerAnalysis:
-    row = CareerAnalysis(id=str(uuid4()), user_id=user_id, status="queued", source=source, file_name=file_name, cv_text=cv_text)
+def create_analysis(
+    db: Session,
+    user_id: int,
+    cv_text: str,
+    source: str,
+    file_name: str | None,
+    cv_document_id: str | None = None,
+) -> CareerAnalysis:
+    now = datetime.now(timezone.utc)
+    row = CareerAnalysis(
+        id=str(uuid4()), user_id=user_id, cv_document_id=cv_document_id,
+        status="queued", source=source, file_name=file_name, cv_text=cv_text,
+        created_at=now, updated_at=now,
+    )
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -106,6 +111,8 @@ def analyze_row(db: Session, row: CareerAnalysis, evidence_context: list[dict] |
         row.radar = data["radar"]
         row.career_ladder = data["roles"]
         row.error_code = row.error_message = None
+        if row.source in {"archive_uploaded", "archive_generated"}:
+            _delete_target_plan(db, row.user_id)
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
         row.status = "failed"
         row.error_code = "ai_unavailable" if isinstance(exc, AIUnavailableError) else ("ai_invalid_output" if isinstance(exc, AIOutputError) else "ai_provider_error")
@@ -126,6 +133,8 @@ def select_target(db: Session, user_id: int, title: str, source: str, job_url: s
 
 
 def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
+    if target.status != "queued":
+        return target
     analysis = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == target.user_id, CareerAnalysis.status == "ready").order_by(CareerAnalysis.created_at.desc()))
     if analysis is None:
         target.status = "failed"
@@ -138,30 +147,41 @@ def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
         "current_role": analysis.current_role,
         "skills": analysis.skills,
         "radar": analysis.radar,
-        "approved_training_catalog": TRAINING_CATALOG,
         "rules": [
             "Görevler somut, ölçülebilir ve hedef role doğrudan bağlı olmalı",
             "Kanıt gerektiren görevde evidence_required true ve uygun link/file türleri olmalı",
             "skill_impacts yalnız görev tamamlandığında yeniden puanlanacak yetenekleri içermeli",
-            "Eğitim önerileri yalnız approved_training_catalog içindeki catalog_id değerlerinden seçilmeli ve kişiye göre sıralanmalı",
-            "Bir eğitim belirli görevi destekliyorsa o görevin training_suggestions alanında yer almalı",
+            "Eğitim gerektiğinde training_queries içine hedef rol ve yeteneği içeren özgül web arama sorgusu yaz",
+            "Eğitim gerekmeyen görevde training_queries boş olmalı",
+            "Sorgular sertifika, resmi eğitim, kurs veya uygulamalı öğrenme kaynağı bulmaya uygun olmalı",
         ],
     }, ensure_ascii=False)
     try:
         output = _invoke(prompt, CareerPlanAI)
-        approved = {item["catalog_id"]: item for item in TRAINING_CATALOG}
-        tasks = []
+        task_specs = []
+        search_errors = []
         for item in output.tasks:
-            suggestions = sorted(
-                [approved[s.catalog_id] | {"rank": s.rank} for s in item.training_suggestions if s.catalog_id in approved],
-                key=lambda item: item["rank"],
-            )
+            suggestions = []
+            for search in item.training_queries:
+                try:
+                    suggestions.extend(search_training(search.query, search.skill, 3))
+                except (TrainingSearchUnavailable, httpx.HTTPError) as exc:
+                    search_errors.append(str(exc)[:200])
+            task_specs.append((item, suggestions))
+        db.refresh(target)
+        if target.status != "queued":
+            return target
+        tasks = []
+        for item, suggestions in task_specs:
             task = CareerTask(id=str(uuid4()), user_id=target.user_id, target_id=target.id, title=item.title, hint=item.hint, status="pending", evidence_required=item.evidence_required, evidence_types=item.evidence_types, skill_impacts=item.skill_impacts, training_suggestions=suggestions)
             db.add(task)
             tasks.append({"id": task.id, "title": task.title, "training_suggestions": suggestions})
-        target.plan = {"tasks": tasks, "catalog": TRAINING_CATALOG}
+        target.plan = {"tasks": tasks, "training_search": {"provider": settings.EDUCATION_SEARCH_PROVIDER, "status": "ready" if not search_errors else "partial", "errors": search_errors[:3]}}
         target.status = "active"
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
+        db.refresh(target)
+        if target.status != "queued":
+            return target
         target.status = "failed"
         target.plan = {"error_code": "ai_unavailable" if isinstance(exc, AIUnavailableError) else "ai_error", "message": str(exc)[:500]}
     db.commit()
@@ -170,15 +190,36 @@ def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
 
 
 def serialize_analysis(row: CareerAnalysis) -> dict[str, Any]:
-    return {"id": row.id, "status": row.status, "current_role": row.current_role, "profile": row.profile or {}, "skills": row.skills or [], "radar": row.radar or [], "career_ladder": row.career_ladder or [], "error_code": row.error_code, "error_message": row.error_message, "created_at": (row.created_at or datetime.now(timezone.utc)).isoformat()}
+    return {"id": row.id, "status": row.status, "source": row.source, "file_name": row.file_name, "cv_document_id": row.cv_document_id, "current_role": row.current_role, "profile": row.profile or {}, "skills": row.skills or [], "radar": row.radar or [], "career_ladder": row.career_ladder or [], "error_code": row.error_code, "error_message": row.error_message, "created_at": (row.created_at or datetime.now(timezone.utc)).isoformat()}
 
 
 def serialize_target(row: CareerTarget) -> dict[str, Any]:
     return {"id": row.id, "title": row.title, "source": row.source, "status": row.status, "plan": row.plan or {}, "created_at": (row.created_at or datetime.now(timezone.utc)).isoformat()}
 
 
-def serialize_task(row: CareerTask) -> dict[str, Any]:
-    return {"id": row.id, "target_id": row.target_id, "title": row.title, "hint": row.hint, "status": row.status, "evidence_required": row.evidence_required, "evidence_types": row.evidence_types or [], "skill_impacts": row.skill_impacts or [], "training_suggestions": row.training_suggestions or [], "feedback": row.feedback}
+def serialize_task(row: CareerTask, db: Session | None = None) -> dict[str, Any]:
+    has_evidence = evidence_verified = evidence_pending = False
+    if db is not None:
+        evidence_rows = db.scalars(select(Evidence).where(Evidence.task_id == row.id)).all()
+        has_evidence = len(evidence_rows) > 0
+        evidence_verified = any(item.status == "accepted" for item in evidence_rows)
+        evidence_pending = any(item.status == "pending" for item in evidence_rows)
+    return {
+        "id": row.id,
+        "target_id": row.target_id,
+        "title": row.title,
+        "hint": row.hint,
+        "note": row.note or "",
+        "status": row.status,
+        "evidence_required": row.evidence_required,
+        "evidence_types": row.evidence_types or [],
+        "skill_impacts": row.skill_impacts or [],
+        "training_suggestions": row.training_suggestions or [],
+        "feedback": row.feedback,
+        "has_evidence": has_evidence,
+        "evidence_verified": evidence_verified,
+        "evidence_pending": evidence_pending,
+    }
 
 
 def submit_evidence(db: Session, user_id: int, task: CareerTask, kind: str, url: str | None, file_path: str | None) -> Evidence:
@@ -192,13 +233,68 @@ def submit_evidence(db: Session, user_id: int, task: CareerTask, kind: str, url:
 def reset_career_state(db: Session, user_id: int, scope: str) -> dict[str, int]:
     deleted = {"analyses": 0, "targets": 0, "tasks": 0, "evidence": 0}
     if scope in {"plan", "all"}:
-        deleted["evidence"] = db.execute(delete(Evidence).where(Evidence.user_id == user_id)).rowcount
-        deleted["tasks"] = db.execute(delete(CareerTask).where(CareerTask.user_id == user_id)).rowcount
-        deleted["targets"] = db.execute(delete(CareerTarget).where(CareerTarget.user_id == user_id)).rowcount
+        deleted.update(_delete_target_plan(db, user_id))
     if scope in {"analysis", "all"}:
         deleted["analyses"] = db.execute(delete(CareerAnalysis).where(CareerAnalysis.user_id == user_id)).rowcount
     db.commit()
     return deleted
+
+
+def _delete_target_plan(db: Session, user_id: int) -> dict[str, int]:
+    return {
+        "evidence": db.execute(delete(Evidence).where(Evidence.user_id == user_id)).rowcount,
+        "tasks": db.execute(delete(CareerTask).where(CareerTask.user_id == user_id)).rowcount,
+        "targets": db.execute(delete(CareerTarget).where(CareerTarget.user_id == user_id)).rowcount,
+    }
+
+
+def _find_skill_task(db: Session, user_id: int, target_id: str, skill: str) -> CareerTask | None:
+    needle = skill.strip().lower()
+    if needle == "":
+        return None
+    rows = db.scalars(select(CareerTask).where(CareerTask.user_id == user_id, CareerTask.target_id == target_id)).all()
+    for row in rows:
+        impacts = [str(item).lower() for item in (row.skill_impacts or [])]
+        if needle in impacts:
+            return row
+    return None
+
+
+def ensure_skill_evidence_task(db: Session, user_id: int, target_id: str, skill: str) -> CareerTask:
+    existing = _find_skill_task(db, user_id, target_id, skill)
+    if existing is not None:
+        return existing
+    target = db.scalar(select(CareerTarget).where(CareerTarget.id == target_id, CareerTarget.user_id == user_id))
+    if target is None:
+        raise ValueError("Hedef bulunamadı")
+    task = CareerTask(
+        id=str(uuid4()),
+        user_id=user_id,
+        target_id=target_id,
+        title=f"{skill.strip()} kanıtı",
+        hint=f"{skill.strip()} yeteneğini kanıtlayan GitHub, sertifika, portföy veya doğrulanabilir bağlantı yükle.",
+        status="pending",
+        evidence_required=False,
+        evidence_types=["link", "file"],
+        skill_impacts=[skill.strip()],
+        training_suggestions=[],
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def clear_skill_evidence(db: Session, user_id: int, target_id: str, skill: str) -> CareerTask | None:
+    task = _find_skill_task(db, user_id, target_id, skill)
+    if task is None:
+        return None
+    db.execute(delete(Evidence).where(Evidence.task_id == task.id, Evidence.user_id == user_id))
+    task.status = "pending"
+    task.feedback = None
+    db.commit()
+    db.refresh(task)
+    return task
 
 
 def review_evidence(db: Session, evidence: Evidence) -> Evidence:

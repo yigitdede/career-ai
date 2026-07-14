@@ -38,43 +38,106 @@
     </div>
 
     <section x-show="tab === 'profil'" x-cloak class="space-y-6">
-        <form class="panel-card space-y-4 p-6" onsubmit="return false;">
+        <form class="panel-card space-y-4 p-6" @submit.prevent="save()"
+            x-data="profileSocialLinks({{ Js::from($profile['social_links'] ?? []) }}, 'panel-profile-links', {{ Js::from($profile) }}, @js(route('panel.account.profile.update')))">
             <div class="grid gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <label class="mb-1 block text-xs text-slate-500">{{ __('panel.profile.name') }}</label>
-                    <input type="text" value="{{ $profile['name'] }}"
+                    <input type="text" x-model="profile.full_name"
                         class="panel-input-block focus:border-emerald-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-500">{{ __('panel.profile.phone') }}</label>
-                    <input type="tel" value="{{ $profile['phone'] }}"
+                    <input type="tel" x-model="profile.phone"
                         class="panel-input-block focus:border-emerald-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-500">{{ __('panel.profile.location') }}</label>
-                    <input type="text" value="{{ $profile['location'] }}"
+                    <input type="text" x-model="profile.location"
                         class="panel-input-block focus:border-emerald-500 focus:outline-none">
                 </div>
                 <div class="sm:col-span-2">
                     <label class="mb-1 block text-xs text-slate-500">{{ __('panel.profile.headline') }}</label>
-                    <input type="text" value="{{ $profile['headline'] }}"
+                    <input type="text" x-model="profile.headline"
                         class="panel-input-block focus:border-emerald-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="mb-1 block text-xs text-slate-500">{{ __('panel.profile.linkedin') }}</label>
-                    <input type="url" value="{{ $profile['linkedin'] }}"
+                    <input type="url" x-model="profile.linkedin"
                         class="panel-input-block focus:border-emerald-500 focus:outline-none">
                 </div>
-                <div>
-                    <label class="mb-1 block text-xs text-slate-500">{{ __('panel.profile.github') }}</label>
-                    <input type="url" value="{{ $profile['github'] }}"
-                        class="panel-input-block focus:border-emerald-500 focus:outline-none">
+                <div class="sm:col-span-2">
+                    <div class="mb-2 flex items-end justify-between gap-3">
+                        <div><label class="block text-xs font-medium text-slate-700 dark:text-slate-300">{{ __('panel.profile.profile_links') }}</label><p class="mt-1 text-xs text-slate-500">{{ __('panel.profile.profile_links_hint') }}</p></div>
+                        <button type="button" class="panel-outline-btn" @click="addLink()" :disabled="links.length >= maxLinks">{{ __('panel.profile.add_link') }}</button>
+                    </div>
+                    <div class="panel-profile-links-stack space-y-2">
+                        <template x-for="link in links" :key="link.id">
+                            <div class="grid gap-2 sm:grid-cols-[12rem_1fr_auto]">
+                                <div
+                                    class="panel-platform-combobox"
+                                    data-platform-combobox
+                                    :data-link-id="link.id"
+                                    @click.outside="closeDropdown()"
+                                >
+                                    <div class="relative">
+                                        <input
+                                            type="text"
+                                            x-model="link.platform"
+                                            @focus="onPlatformFocus(link)"
+                                            @input="onPlatformInput(link)"
+                                            @keydown.escape.prevent="closeDropdown()"
+                                            class="panel-input-block panel-platform-trigger"
+                                            placeholder="{{ __('panel.profile.platform_placeholder') }}"
+                                            role="combobox"
+                                            :aria-expanded="isDropdownOpen(link)"
+                                            aria-autocomplete="list"
+                                            autocomplete="off"
+                                        >
+                                        <button
+                                            type="button"
+                                            class="panel-platform-toggle"
+                                            @click="toggleDropdown(link)"
+                                            :aria-label="@js(__('panel.profile.platform_placeholder'))"
+                                            :aria-expanded="isDropdownOpen(link)"
+                                        >
+                                            <svg viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div
+                                        x-show="isDropdownOpen(link) && filteredPlatforms(link).length"
+                                        x-cloak
+                                        data-platform-menu
+                                        class="panel-platform-menu"
+                                        :class="dropdownUp ? 'panel-platform-menu-up' : 'panel-platform-menu-down'"
+                                        role="listbox"
+                                    >
+                                        <template x-for="option in filteredPlatforms(link)" :key="option">
+                                            <button
+                                                type="button"
+                                                class="panel-platform-option"
+                                                :class="link.platform === option ? 'panel-platform-option-active' : ''"
+                                                @mousedown.prevent="selectPlatform(link, option)"
+                                                role="option"
+                                                :aria-selected="link.platform === option"
+                                                x-text="option"
+                                            ></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <input type="url" x-model="link.url" @input.debounce.300ms="persist()" class="panel-input-block" placeholder="https://...">
+                                <button type="button" class="panel-btn-danger" @click="removeLink(link)" :aria-label="@js(__('panel.profile.remove_link'))">{{ __('panel.profile.remove') }}</button>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
-            <div class="flex flex-wrap items-center gap-3 pt-2">
-                <button type="button" disabled class="panel-btn-disabled">
-                    {{ __('panel.profile.save_soon') }}
-                </button>
+            <div class="panel-profile-save-row flex flex-wrap items-center gap-3 pt-2">
+                <button type="submit" :disabled="saving" class="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-60">{{ __('panel.profile.save_soon') }}</button>
+                <span x-show="saved" x-cloak class="text-sm text-emerald-600">{{ __('panel.profile.saved') }}</span>
+                <span x-show="error" x-cloak x-text="error" class="text-sm text-red-600"></span>
             </div>
         </form>
     </section>
@@ -115,7 +178,7 @@
         </form>
     </section>
 
-    <section id="cv-yukle" x-show="tab === 'cv'" x-cloak x-data="profileCvUpload(@js(app()->getLocale()), @js(route('panel.cv.analyze')), @js(route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS_ID__'])), @js(route('panel.career-ladder')))">
+    <section id="cv-yukle" x-show="tab === 'cv'" x-cloak x-data="profileCvUpload(@js(app()->getLocale()), @js(route('panel.cv.analyze')), @js(route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS_ID__'])), @js(route('panel.career-ladder')), @js(route('panel.cv-history.analyze', ['documentId' => '__DOCUMENT_ID__'])))">
         <div class="panel-card p-6">
             <h2 class="mb-2 font-semibold">{{ __('panel.profile.cv_file_title') }}</h2>
             <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">
@@ -129,12 +192,12 @@
             </p>
             <p x-show="error" x-cloak class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-200" x-text="error"></p>
 
-            <template x-if="fileName">
+            @if (is_array($currentCv ?? null))
                 <div class="mb-4 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-                    <span class="text-sm text-emerald-700 dark:text-emerald-300" x-text="fileName"></span>
-                    <button type="button" @click="removeCv()" class="text-xs text-slate-500 hover:text-red-500">{{ __('panel.profile.remove') }}</button>
+                    <div><p class="text-sm text-emerald-700 dark:text-emerald-300">{{ $currentCv['display_name'] }}</p><p class="mt-1 text-xs text-slate-500">{{ __('panel.profile.last_upload', ['date' => \Illuminate\Support\Carbon::parse($currentCv['created_at'])->format('d.m.Y H:i')]) }}</p></div>
+                    <div class="flex items-center gap-3"><a href="{{ route('panel.cv-history.download', $currentCv['id']) }}" class="text-xs text-emerald-600 hover:underline dark:text-emerald-400">{{ __('panel.profile.cv_download_again') }}</a><form method="post" action="{{ route('panel.cv-history.archive-current', $currentCv['id']) }}">@csrf<button type="submit" class="text-xs text-slate-500 hover:text-red-500">{{ __('panel.profile.remove') }}</button></form></div>
                 </div>
-            </template>
+            @endif
 
             <label class="panel-upload-zone" :class="loading ? 'pointer-events-none opacity-60' : ''">
                 <i data-lucide="file-text" class="mb-2 h-8 w-8 text-emerald-500" aria-hidden="true"></i>
@@ -145,12 +208,36 @@
             </label>
 
             <p class="mt-4 text-xs text-slate-500">
-                @if ($profile['uploaded_cv']['uploaded_at'])
-                    {{ __('panel.profile.last_upload', ['date' => $profile['uploaded_cv']['uploaded_at']]) }}
-                @else
+                @if (! is_array($currentCv ?? null))
                     {{ __('panel.profile.no_cv') }}
                 @endif
             </p>
+        </div>
+
+        <div class="panel-card mt-6 p-6">
+            <h2 class="font-semibold">{{ __('panel.profile.cv_history_title') }}</h2>
+            <p class="panel-muted mt-1 text-sm">{{ __('panel.profile.cv_history_desc') }}</p>
+            @if (! empty($cvHistory))
+                <ul class="mt-5 divide-y divide-slate-200 dark:divide-slate-800">
+                    @foreach ($cvHistory as $document)
+                        <li class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0"><p class="truncate text-sm font-medium">{{ $document['display_name'] }}</p><p class="panel-muted mt-1 text-xs">{{ ($document['kind'] ?? '') === 'generated' ? __('panel.profile.cv_generated') : __('panel.profile.cv_uploaded') }} · {{ \Illuminate\Support\Carbon::parse($document['created_at'])->format('d.m.Y H:i') }}</p></div>
+                            <div class="flex flex-wrap items-center gap-3 text-xs">
+                                <button type="button" @click="analyzeHistory(@js($document['id']))" :disabled="historyLoadingId !== null"
+                                    class="font-medium text-violet-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-violet-400">
+                                    <span x-show="historyLoadingId !== @js($document['id'])">{{ __('panel.profile.cv_analyze_active') }}</span>
+                                    <span x-show="historyLoadingId === @js($document['id'])" x-cloak>{{ __('panel.profile.cv_analyze_active_working') }}</span>
+                                </button>
+                                @if (($document['kind'] ?? '') === 'generated')<a href="{{ route('panel.cv-builder', ['cvDocument' => $document['id']]) }}" class="text-sky-600 hover:underline dark:text-sky-400">{{ __('panel.profile.cv_restore') }}</a>@endif
+                                <a href="{{ route('panel.cv-history.download', $document['id']) }}" class="text-emerald-600 hover:underline dark:text-emerald-400">{{ __('panel.profile.cv_download_again') }}</a>
+                                <form method="post" action="{{ route('panel.cv-history.destroy', $document['id']) }}" onsubmit='return confirm(@json(__('panel.profile.cv_delete_confirm')))'>@csrf @method('DELETE')<button type="submit" class="text-red-600 hover:underline dark:text-red-400">{{ __('panel.profile.cv_delete') }}</button></form>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="mt-5 rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">{{ __('panel.profile.cv_history_empty') }}</p>
+            @endif
         </div>
     </section>
 

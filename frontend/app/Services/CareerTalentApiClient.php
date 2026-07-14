@@ -128,6 +128,61 @@ class CareerTalentApiClient
         return $this->postJson('/api/v1/cv/analyze-text', $payload, 120);
     }
 
+    public function cvDocuments(): array
+    {
+        return $this->getJson('/api/v1/cv/documents', 15);
+    }
+
+    public function cvDocument(string $documentId): array
+    {
+        return $this->getJson('/api/v1/cv/documents/'.rawurlencode($documentId), 15);
+    }
+
+    public function archiveGeneratedCv(UploadedFile $file, string $displayName, string $language, string $builderData): array
+    {
+        try {
+            $response = $this->request(45)
+                ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                ->post($this->baseUrl().'/api/v1/cv/documents/generated', [
+                    'display_name' => $displayName,
+                    'language' => $language,
+                    'builder_data' => $builderData,
+                ]);
+
+            if (! $response->successful()) {
+                return $this->normalizeResponse($response);
+            }
+            return ['ok' => true, 'status' => $response->status(), 'body' => $response->json(), 'error' => null];
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+    public function archiveCurrentCv(string $documentId): array
+    {
+        return $this->patchJson('/api/v1/cv/documents/'.rawurlencode($documentId).'/archive', [], 15);
+    }
+
+    public function analyzeCvDocument(string $documentId): array
+    {
+        return $this->postJson('/api/v1/cv/documents/'.rawurlencode($documentId).'/analyze', [], 120);
+    }
+
+    public function deleteCvDocument(string $documentId): array
+    {
+        return $this->deleteJson('/api/v1/cv/documents/'.rawurlencode($documentId), 15);
+    }
+
+    public function downloadCvDocument(string $documentId): array
+    {
+        try {
+            $response = $this->request(30)->get($this->baseUrl().'/api/v1/cv/documents/'.rawurlencode($documentId).'/download');
+            return ['ok' => $response->successful(), 'status' => $response->status(), 'content' => $response->body(), 'content_type' => $response->header('Content-Type'), 'content_disposition' => $response->header('Content-Disposition')];
+        } catch (ConnectionException $exception) {
+            return ['ok' => false, 'status' => 502, 'content' => '', 'content_type' => null, 'content_disposition' => null];
+        }
+    }
+
     public function careerAnalysis(string $analysisId): array
     {
         return $this->getJson('/api/v1/career/analysis/'.rawurlencode($analysisId), 10);
@@ -184,6 +239,11 @@ class CareerTalentApiClient
         return $this->getJson('/api/v1/career/targets', 10);
     }
 
+    public function careerTarget(string $targetId): array
+    {
+        return $this->getJson('/api/v1/career/targets/'.rawurlencode($targetId), 10);
+    }
+
     /** @param array<string, mixed> $payload */
     public function createCareerTarget(array $payload): array
     {
@@ -198,6 +258,97 @@ class CareerTalentApiClient
     public function careerTask(string $taskId): array
     {
         return $this->getJson('/api/v1/career/tasks/'.rawurlencode($taskId), 10);
+    }
+
+    public function careerProfile(): array
+    {
+        return $this->getJson('/api/v1/career/profile', 10);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateCareerProfile(array $payload): array
+    {
+        return $this->putJson('/api/v1/career/profile', $payload, 15);
+    }
+
+    public function careerChat(): array
+    {
+        return $this->getJson('/api/v1/career/chat', 10);
+    }
+
+    public function sendCareerChat(string $message): array
+    {
+        return $this->postJson('/api/v1/career/chat', ['message' => $message], 90);
+    }
+
+    public function clearCareerChat(): array
+    {
+        return $this->deleteJson('/api/v1/career/chat', 15);
+    }
+
+    public function currentInterview(): array
+    {
+        return $this->getJson('/api/v1/career/interviews/current', 15);
+    }
+
+    public function startInterview(): array
+    {
+        return $this->postJson('/api/v1/career/interviews', [], 90);
+    }
+
+    public function scoreInterviewAnswer(string $interviewId, array $payload): array
+    {
+        return $this->postJson('/api/v1/career/interviews/'.rawurlencode($interviewId).'/answers', $payload, 90);
+    }
+
+    public function personalTasks(?string $targetId = null): array
+    {
+        return $this->getJson('/api/v1/career/personal-tasks'.($targetId ? '?target_id='.rawurlencode($targetId) : ''), 10);
+    }
+
+    public function createPersonalTask(array $payload): array
+    {
+        return $this->postJson('/api/v1/career/personal-tasks', $payload, 15);
+    }
+
+    public function updatePersonalTask(string $taskId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/career/personal-tasks/'.rawurlencode($taskId), $payload, 15);
+    }
+
+    public function updateCareerTaskNote(string $taskId, ?string $note): array
+    {
+        return $this->patchJson('/api/v1/career/tasks/'.rawurlencode($taskId).'/note', ['note' => $note], 15);
+    }
+
+    public function updateCareerTaskStatus(string $taskId, string $status): array
+    {
+        return $this->patchJson('/api/v1/career/tasks/'.rawurlencode($taskId), ['status' => $status], 15);
+    }
+
+    public function deletePersonalTask(string $taskId): array
+    {
+        return $this->deleteJson('/api/v1/career/personal-tasks/'.rawurlencode($taskId), 15);
+    }
+
+    public function careerApplications(): array
+    {
+        return $this->getJson('/api/v1/career/applications', 15);
+    }
+
+    public function createCareerApplication(array $payload): array
+    {
+        return $this->postJson('/api/v1/career/applications', $payload, 15);
+    }
+
+    public function updateCareerApplication(string $applicationId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/career/applications/'.rawurlencode($applicationId), $payload, 15);
+    }
+
+    public function markCareerJobApplied(string $jobId): array
+    {
+        return $this->postJson('/api/v1/career/jobs/'.rawurlencode($jobId).'/application', [], 15);
     }
 
     /** @param array<string, mixed> $payload */
@@ -217,6 +368,38 @@ class CareerTalentApiClient
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }
+    }
+
+    public function submitSkillEvidenceLink(string $skill, string $targetId, string $url): array
+    {
+        return $this->postJson('/api/v1/career/skill-evidence/link', [
+            'skill' => $skill,
+            'target_id' => $targetId,
+            'url' => $url,
+        ], 30);
+    }
+
+    public function submitSkillEvidenceFile(string $skill, string $targetId, UploadedFile $file): array
+    {
+        try {
+            $response = $this->request(30)
+                ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                ->post($this->baseUrl().'/api/v1/career/skill-evidence/upload', [
+                    'skill' => $skill,
+                    'target_id' => $targetId,
+                ]);
+
+            return $this->normalizeResponse($response);
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+    public function clearSkillEvidence(string $skill, string $targetId): array
+    {
+        $query = http_build_query(['skill' => $skill, 'target_id' => $targetId]);
+
+        return $this->deleteJson('/api/v1/career/skill-evidence?'.$query, 15);
     }
 
     /**
@@ -264,6 +447,24 @@ class CareerTalentApiClient
     {
         try {
             return $this->normalizeResponse($this->request($timeout)->put($this->baseUrl().$path, $payload));
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+    private function patchJson(string $path, array $payload, int $timeout): array
+    {
+        try {
+            return $this->normalizeResponse($this->request($timeout)->patch($this->baseUrl().$path, $payload));
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
+    private function deleteJson(string $path, int $timeout): array
+    {
+        try {
+            return $this->normalizeResponse($this->request($timeout)->delete($this->baseUrl().$path));
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }

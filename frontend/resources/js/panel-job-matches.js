@@ -6,7 +6,7 @@ function normalizeJob(job) {
         missing_skills: Array.isArray(job.missing_skills) ? job.missing_skills : [],
         cv_suggestions: Array.isArray(job.cv_suggestions) ? job.cv_suggestions : [],
         apply_status: job.apply_status || null, result_analysis_id: job.result_analysis_id || null,
-        error_message: job.error_message || '', created_at: job.created_at || new Date().toISOString(), selected: [],
+        error_message: job.error_message || '', created_at: job.created_at || new Date().toISOString(), selected: [], application_created: Boolean(job.application_created),
     };
 }
 
@@ -46,6 +46,7 @@ export function panelJobMatches(seedJobs, config) {
             throw new Error(this.config.errors.timeout);
         },
         async saveJob(job) { try { Object.assign(job, normalizeJob(await this.request(this.endpoint(this.config.saveUrl, job), { method: 'POST', body: '{}' }))); } catch (error) { this.error = error.message; } },
+        async markApplied(job) { try { await this.request(this.endpoint(this.config.appliedUrl, job), { method: 'POST', body: '{}' }); job.application_created = true; } catch (error) { this.error = error.message; } },
         async applyJob(job) {
             if (!job.selected.length || job.apply_status === 'queued' || job.apply_status === 'running') return;
             this.error = '';

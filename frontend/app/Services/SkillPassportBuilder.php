@@ -33,7 +33,9 @@ class SkillPassportBuilder
                 'target' => $target,
                 'evidence' => $status === 'verified'
                     ? (string) (($task['title'] ?? '') ?: 'AI kanıt incelemesi')
-                    : ($score >= $target ? 'AI CV analizi' : 'CV analizi · gap'),
+                    : (is_array($task) && ($task['title'] ?? '') !== ''
+                        ? (string) $task['title']
+                        : ($score >= $target ? 'AI CV analizi' : 'CV analizi · gap')),
                 'impact' => 'Hedef: %'.$target,
                 'type' => $status === 'verified' ? 'AI evidence' : 'AI radar',
                 'status' => $status,
@@ -44,7 +46,7 @@ class SkillPassportBuilder
         }
 
         foreach ($tasks as $task) {
-            if (! is_array($task) || ($task['status'] ?? null) !== 'completed') {
+            if (! is_array($task) || ! $this->taskHasVerifiedEvidence($task)) {
                 continue;
             }
 
@@ -56,7 +58,7 @@ class SkillPassportBuilder
 
                 $items[] = [
                     'skill' => $label,
-                    'level' => 'Doğrulandı',
+                    'level' => '%100',
                     'score' => 100,
                     'target' => 100,
                     'evidence' => (string) ($task['title'] ?? ''),
@@ -82,12 +84,12 @@ class SkillPassportBuilder
             return (string) ($item['label'] ?? '');
         }, $radar)));
 
-        $completed = count(array_filter($tasks, static fn ($task) => is_array($task) && ($task['status'] ?? null) === 'completed'));
+        $verified = count(array_filter($items, static fn ($item) => ($item['status'] ?? '') === 'verified'));
 
         return [
             'score' => $score,
-            'verified' => $completed,
-            'total' => max(count($radar), count($tasks)),
+            'verified' => $verified,
+            'total' => max(count($radar), count($items)),
             'gaps' => $gaps,
             'items' => $items,
         ];
@@ -101,7 +103,7 @@ class SkillPassportBuilder
     {
         $skills = [];
         foreach ($tasks as $task) {
-            if (! is_array($task) || ($task['status'] ?? null) !== 'completed') {
+            if (! is_array($task) || ! $this->taskHasVerifiedEvidence($task)) {
                 continue;
             }
             foreach (is_array($task['skill_impacts'] ?? null) ? $task['skill_impacts'] : [] as $skill) {
@@ -110,6 +112,14 @@ class SkillPassportBuilder
         }
 
         return array_values(array_unique($skills));
+    }
+
+    /**
+     * @param  array<string, mixed>  $task
+     */
+    private function taskHasVerifiedEvidence(array $task): bool
+    {
+        return (bool) ($task['evidence_verified'] ?? false);
     }
 
     /**
@@ -131,7 +141,7 @@ class SkillPassportBuilder
                 continue;
             }
 
-            if (($task['status'] ?? null) === 'completed') {
+            if ($this->taskHasVerifiedEvidence($task)) {
                 return $task;
             }
 
@@ -151,19 +161,28 @@ class SkillPassportBuilder
         }
 
         if (is_array($task)) {
-            $status = (string) ($task['status'] ?? 'pending');
-            if (in_array($status, ['completed', 'accepted'], true)) {
+            if ($this->taskHasVerifiedEvidence($task)) {
                 return 'verified';
             }
-            if (in_array($status, ['pending', 'reviewing', 'queued'], true)) {
-                return 'review';
-            }
+
+            $status = (string) ($task['status'] ?? 'pending');
+
             if ($status === 'revision_required') {
                 return 'revision';
             }
+
+            if (($task['evidence_pending'] ?? false) || in_array($status, ['reviewing', 'queued'], true)) {
+                return 'review';
+            }
+
+            if (($task['has_evidence'] ?? false) && $status === 'pending') {
+                return 'review';
+            }
+
+            return 'waiting';
         }
 
-        return $score >= $target ? 'review' : 'missing';
+        return $score >= $target ? 'waiting' : 'missing';
     }
 
     /**

@@ -13,6 +13,9 @@ class CareerAnalysis(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True, nullable=False)
+    cv_document_id: Mapped[str | None] = mapped_column(
+        ForeignKey("cv_documents.id", ondelete="SET NULL"), index=True, nullable=True
+    )
     status: Mapped[str] = mapped_column(String(20), index=True, nullable=False, default="queued")
     source: Mapped[str] = mapped_column(String(20), nullable=False)
     file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -51,6 +54,7 @@ class CareerTask(Base):
     target_id: Mapped[str] = mapped_column(ForeignKey("career_targets.id"), index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(240), nullable=False)
     hint: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), index=True, nullable=False, default="pending")
     evidence_required: Mapped[bool] = mapped_column(nullable=False, default=True)
     evidence_types: Mapped[list] = mapped_column(JSON, nullable=False, default=list)

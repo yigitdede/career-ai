@@ -74,6 +74,60 @@ def test_analysis_strict_ai_contains_all_tiers_and_null_current_role(client, mon
     db.close()
 
 
+def test_archived_cv_analysis_clears_old_target_only_after_ai_succeeds(client, monkeypatch):
+    register(client)
+    override = __import__("app.main", fromlist=["app"]).app.dependency_overrides
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    row = CareerAnalysis(id="archive-analysis", user_id=1, status="queued", source="archive_generated", cv_text="SQL Python veri analizi deneyimi")
+    target = CareerTarget(id="old-target", user_id=1, title="Eski Hedef", source="ladder", status="active")
+    task = CareerTask(id="old-task", user_id=1, target_id=target.id, title="Eski görev", hint="", status="pending", evidence_required=True, evidence_types=["link"], skill_impacts=["SQL"], training_suggestions=[])
+    evidence = Evidence(id="old-evidence", user_id=1, task_id=task.id, kind="link", url="https://example.com/work", status="accepted")
+    db.add_all([row, target, task, evidence]); db.commit()
+    monkeypatch.setattr(career_engine, "_invoke", lambda _prompt, _schema: career_engine.CareerAnalysisAI.model_validate({
+        "current_role": "Veri Analisti", "profile": {}, "skills": [{"name": "SQL", "score": 80}],
+        "radar": [{"label": "SQL", "score": 80, "target": 90}],
+        "roles": [
+            {"tier": "A", "title": "Data Analyst", "readiness": 80, "swot": {"strengths": ["SQL"], "weaknesses": [], "opportunities": [], "threats": []}},
+            {"tier": "B", "title": "BI Analyst", "readiness": 60, "swot": {"strengths": ["SQL"], "weaknesses": [], "opportunities": [], "threats": []}},
+            {"tier": "C", "title": "Data Scientist", "readiness": 30, "swot": {"strengths": [], "weaknesses": ["ML"], "opportunities": [], "threats": []}},
+        ],
+    }))
+
+    career_engine.analyze_row(db, row)
+
+    assert row.status == "ready"
+    assert db.query(CareerTarget).filter_by(user_id=1).count() == 0
+    assert db.query(CareerTask).filter_by(user_id=1).count() == 0
+    assert db.query(Evidence).filter_by(user_id=1).count() == 0
+
+    failed = CareerAnalysis(id="failed-archive-analysis", user_id=1, status="queued", source="archive_uploaded", cv_text="SQL Python")
+    preserved = CareerTarget(id="preserved-target", user_id=1, title="Korunacak Hedef", source="ladder", status="active")
+    db.add_all([failed, preserved]); db.commit()
+    monkeypatch.setattr(career_engine, "_invoke", lambda _prompt, _schema: (_ for _ in ()).throw(career_engine.AIProviderError("AI kapalı")))
+
+    career_engine.analyze_row(db, failed)
+
+    assert failed.status == "failed"
+    assert db.query(CareerTarget).filter_by(id="preserved-target").count() == 1
+    db.close()
+
+
+def test_current_analysis_keeps_last_ready_result_while_new_analysis_is_not_ready(client):
+    register(client)
+    auth = headers(client)
+    override = __import__("app.main", fromlist=["app"]).app.dependency_overrides
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    ready = CareerAnalysis(id="ready-analysis", user_id=1, status="ready", source="upload", file_name="working.pdf", cv_text="SQL", profile={}, skills=[], radar=[], career_ladder=[])
+    failed = CareerAnalysis(id="failed-analysis", user_id=1, status="failed", source="archive_generated", file_name="broken.pdf", cv_text="SQL", profile={}, skills=[], radar=[], career_ladder=[])
+    db.add_all([ready, failed]); db.commit(); db.close()
+
+    current = client.get("/api/v1/career/analysis/current", headers=auth)
+
+    assert current.status_code == 200
+    assert current.json()["id"] == "ready-analysis"
+    assert current.json()["file_name"] == "working.pdf"
+
+
 def test_target_closes_previous_and_evidence_review_is_confidence_gated(client, monkeypatch):
     register(client)
     monkeypatch.setattr(career_tasks.plan_target_task, "delay", lambda _target_id: None)
@@ -99,6 +153,66 @@ def test_target_closes_previous_and_evidence_review_is_confidence_gated(client, 
     assert evidence.status_code == 201
     assert queued_reviews == [evidence.json()["id"]]
     assert client.post(f"/api/v1/career/evidence/{evidence.json()['id']}/review", json={}, headers=auth).status_code == 404
+
+
+def test_target_status_is_owned_and_closed_target_cannot_publish_stale_ai_plan(client, monkeypatch):
+    register(client)
+    register(client, "other@example.com")
+    auth = headers(client)
+    override = __import__("app.main", fromlist=["app"]).app.dependency_overrides
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    analysis = CareerAnalysis(id="plan-analysis", user_id=1, status="ready", source="text", cv_text="SQL analyst", current_role="Analyst", skills=[{"name": "SQL", "score": 80}], radar=[])
+    target = CareerTarget(id="stale-target", user_id=1, title="Data Scientist", source="ladder", status="queued")
+    db.add_all([analysis, target]); db.commit()
+
+    def close_during_ai(_prompt, _schema):
+        target.status = "closed"
+        db.commit()
+        return career_engine.CareerPlanAI.model_validate({"tasks": [{
+            "title": "ML projesi", "hint": "Portfolyoya ekle", "evidence_required": True,
+            "evidence_types": ["link"], "skill_impacts": ["ML"],
+            "training_queries": [],
+        }]})
+
+    monkeypatch.setattr(career_engine, "_invoke", close_during_ai)
+    result = career_engine.plan_target(db, target)
+    assert result.status == "closed"
+    assert db.query(CareerTask).filter(CareerTask.target_id == target.id).count() == 0
+    db.close()
+
+    assert client.get("/api/v1/career/targets/stale-target", headers=auth).status_code == 200
+    assert client.get("/api/v1/career/targets/stale-target", headers=headers(client, "other@example.com")).status_code == 404
+
+
+def test_ai_plan_prompt_and_tasks_change_with_new_target(client, monkeypatch):
+    register(client)
+    override = __import__("app.main", fromlist=["app"]).app.dependency_overrides
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    db.add(CareerAnalysis(id="dynamic-plan-analysis", user_id=1, status="ready", source="text", cv_text="SQL analyst", current_role="Analyst", skills=[{"name": "SQL", "score": 80}], radar=[]))
+    first = CareerTarget(id="first-plan", user_id=1, title="BI Analyst", source="ladder", status="closed")
+    second = CareerTarget(id="second-plan", user_id=1, title="ML Engineer", source="ladder", status="queued")
+    db.add_all([first, second]); db.commit()
+    captured = {}
+
+    def dynamic_plan(prompt, _schema):
+        captured["prompt"] = prompt
+        return career_engine.CareerPlanAI.model_validate({"tasks": [{
+            "title": "ML model portfolyosu", "hint": "Hedef role özel", "evidence_required": True,
+            "evidence_types": ["link"], "skill_impacts": ["Machine Learning"],
+            "training_queries": [{"query": "ML Engineer Python model deployment course certificate", "skill": "Machine Learning", "reason": "Hedef rol boşluğu"}],
+        }]})
+
+    monkeypatch.setattr(career_engine, "_invoke", dynamic_plan)
+    monkeypatch.setattr(career_engine, "search_training", lambda query, skill, _limit: [{"catalog_id": "web-course", "title": "ML Course", "provider": "example.com", "url": "https://example.com/ml", "skills": [skill], "rank": 1, "source": "web"}])
+    career_engine.plan_target(db, second)
+    tasks = db.query(CareerTask).filter(CareerTask.target_id == second.id).all()
+    assert second.status == "active"
+    assert [task.title for task in tasks] == ["ML model portfolyosu"]
+    assert tasks[0].training_suggestions[0]["catalog_id"] == "web-course"
+    assert tasks[0].training_suggestions[0]["source"] == "web"
+    assert '"target_role": "ML Engineer"' in captured["prompt"]
+    assert '"target_role": "BI Analyst"' not in captured["prompt"]
+    db.close()
 
 
 def test_image_ocr_and_owner_context_reach_review_prompt(client, monkeypatch, tmp_path):

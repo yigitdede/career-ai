@@ -7,6 +7,7 @@
     'analyzeUrl' => route('panel.job-matches.analyze'),
     'statusUrl' => route('panel.job-matches.status', ['jobId' => '__JOB__']),
     'saveUrl' => route('panel.job-matches.save', ['jobId' => '__JOB__']),
+    'appliedUrl' => route('panel.job-matches.mark-applied', ['jobId' => '__JOB__']),
     'applyUrl' => route('panel.job-matches.apply', ['jobId' => '__JOB__']),
     'deleteUrl' => route('panel.job-matches.destroy', ['jobId' => '__JOB__']),
     'csrfToken' => csrf_token(), 'locale' => app()->getLocale() === 'en' ? 'en-GB' : 'tr-TR',
@@ -45,7 +46,7 @@
             <template x-for="job in sortedJobs" :key="job.id"><article class="panel-card p-5">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0"><h3 class="font-semibold" x-text="job.title || '{{ __('panel.job_matches.analyzing_btn') }}'"></h3><p class="text-sm text-slate-600 dark:text-slate-400"><span x-text="job.company"></span><span x-show="job.source"> · </span><span x-text="job.source"></span></p><a x-show="job.source_url" :href="job.source_url" target="_blank" rel="noopener noreferrer" class="mt-2 block truncate text-xs text-emerald-600" x-text="job.source_url"></a><p class="mt-2 text-xs text-slate-500" x-text="formatDate(job.created_at)"></p></div>
-                    <div class="flex shrink-0 flex-col items-start gap-2 sm:items-end"><div class="text-right"><p class="text-xs uppercase tracking-wide text-slate-500">{{ __('panel.job_matches.match_label') }}</p><p class="text-3xl font-bold" :class="scoreClass(job.match_score)"><span x-text="job.match_score"></span>%</p></div><div class="flex gap-2"><button x-show="!job.saved && job.status === 'ready'" type="button" class="panel-outline-btn" @click="saveJob(job)">{{ __('panel.job_matches.save') }}</button><button type="button" class="panel-btn-danger" @click="removeJob(job)">{{ __('panel.job_matches.remove') }}</button></div></div>
+                    <div class="flex shrink-0 flex-col items-start gap-2 sm:items-end"><div class="text-right"><p class="text-xs uppercase tracking-wide text-slate-500">{{ __('panel.job_matches.match_label') }}</p><p class="text-3xl font-bold" :class="scoreClass(job.match_score)"><span x-text="job.match_score"></span>%</p></div><div class="flex gap-2"><button x-show="!job.saved && job.status === 'ready'" type="button" class="panel-outline-btn" @click="saveJob(job)">{{ __('panel.job_matches.save') }}</button><button x-show="job.saved && !job.application_created" type="button" class="panel-outline-btn" @click="markApplied(job)">{{ __('panel.job_matches.mark_applied') }}</button><span x-show="job.application_created" class="rounded-xl bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">{{ __('panel.job_matches.application_created') }}</span><button type="button" class="panel-btn-danger" @click="removeJob(job)">{{ __('panel.job_matches.remove') }}</button></div></div>
                 </div>
                 <p x-show="job.status === 'queued' || job.status === 'running'" class="mt-4 text-sm text-amber-600">{{ __('panel.job_matches.analyzing_ai') }}</p>
                 <div x-show="job.status === 'ready'" class="mt-4 grid gap-3 sm:grid-cols-2">

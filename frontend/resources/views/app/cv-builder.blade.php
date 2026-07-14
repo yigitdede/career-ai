@@ -8,7 +8,7 @@
 
 @section('content')
 <div class="mx-auto max-w-7xl"
-    x-data="cvBuilder({{ Js::from($cvDraft) }}, {{ Js::from($cvLabels) }}, @js(app()->getLocale()), @js($hasCvAnalysis ?? false), @js($cvFileName ?? ''), @js(route('panel.cv.analyze-builder')), @js(route('panel.cv.clear')), @js(route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS_ID__'])), {{ Js::from($acceptedEvidence ?? []) }})">
+    x-data="cvBuilder({{ Js::from($cvDraft) }}, {{ Js::from($cvLabels) }}, @js(app()->getLocale()), @js($hasCvAnalysis ?? false), @js($cvFileName ?? ''), @js(route('panel.cv.analyze-builder')), @js(route('panel.cv.clear')), @js(route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS_ID__'])), {{ Js::from($acceptedEvidence ?? []) }}, @js(route('panel.cv.archive-generated')), @js($restoredFromHistory ?? false))">
 
     <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -93,6 +93,10 @@
             <p x-show="pdfExportError" x-cloak
                 class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
                 x-text="pdfExportError" role="alert"></p>
+            <label class="mb-4 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span x-text="uiLabels[panelLocale].pdf_file_name"></span>
+                <input type="text" x-model="pdfFileName" maxlength="250" class="panel-input-block mt-2" :placeholder="uiLabels[panelLocale].pdf_file_name_placeholder">
+            </label>
             <div class="flex flex-col gap-2">
                 <button type="button" @click="confirmPdfDownload('tr')"
                     class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"

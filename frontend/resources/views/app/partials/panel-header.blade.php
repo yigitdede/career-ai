@@ -1,6 +1,7 @@
 @php
     $currentLocale = app()->getLocale();
-    $notifications = __('panel.notifications');
+    $notifications = trans('panel.notifications');
+    $notifications = is_array($notifications) ? $notifications : [];
 @endphp
 
 <header class="flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-6 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 md:px-10">

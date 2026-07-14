@@ -41,6 +41,14 @@ class JobMatchesController extends PanelController
         return $this->apiResponse($api->saveCareerJob($jobId));
     }
 
+    public function markApplied(string $jobId, CareerTalentApiClient $api): JsonResponse
+    {
+        $result = $api->markCareerJobApplied($jobId);
+        return ($result['ok'] ?? false)
+            ? response()->json($result['body'] ?? [], $result['status'] ?: 200)
+            : response()->json(['message' => $result['error'] ?? 'Başvuru kaydedilemedi'], $result['status'] ?? 502);
+    }
+
     public function apply(string $jobId, Request $request, CareerTalentApiClient $api): JsonResponse
     {
         $payload = $request->validate(['suggestion_ids' => ['required', 'array', 'min:1', 'max:20'], 'suggestion_ids.*' => ['string', 'max:36']]);

@@ -15,6 +15,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, Evidence, JobOpportunity
 from app.models.user import User
+from app.models.engagement import JobApplication
 from app.schemas.career import (
     CareerAnalysisResponse,
     CareerTargetRequest,
@@ -59,7 +60,8 @@ def create_job_analysis(request: JobAnalyzeRequest, db: DB, user: CurrentUser):
 @router.get("/jobs")
 def saved_jobs(db: DB, user: CurrentUser):
     rows = db.scalars(select(JobOpportunity).where(JobOpportunity.user_id == user.id, JobOpportunity.saved.is_(True)).order_by(JobOpportunity.created_at.desc())).all()
-    return [serialize_job(row) for row in rows]
+    applied_job_ids = set(db.scalars(select(JobApplication.job_id).where(JobApplication.user_id == user.id, JobApplication.job_id.is_not(None))).all())
+    return [serialize_job(row) | {"application_created": row.id in applied_job_ids} for row in rows]
 
 
 @router.get("/jobs/{job_id}")
@@ -108,7 +110,11 @@ def apply_job(job_id: str, request: JobApplyRequest, db: DB, user: CurrentUser):
 
 @router.get("/analysis/current", response_model=CareerAnalysisResponse | None)
 def current_analysis(db: DB, user: CurrentUser):
-    row = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == user.id).order_by(CareerAnalysis.created_at.desc()))
+    row = db.scalar(
+        select(CareerAnalysis)
+        .where(CareerAnalysis.user_id == user.id, CareerAnalysis.status == "ready")
+        .order_by(CareerAnalysis.created_at.desc())
+    )
     return serialize_analysis(row) if row else None
 
 
@@ -134,13 +140,21 @@ def list_targets(db: DB, user: CurrentUser):
     return [serialize_target(row) for row in rows]
 
 
+@router.get("/targets/{target_id}", response_model=CareerTargetResponse)
+def target_status(target_id: str, db: DB, user: CurrentUser):
+    row = db.scalar(select(CareerTarget).where(CareerTarget.id == target_id, CareerTarget.user_id == user.id))
+    if row is None:
+        raise _not_found()
+    return serialize_target(row)
+
+
 @router.get("/targets/{target_id}/tasks", response_model=list[CareerTaskResponse])
 def list_tasks(target_id: str, db: DB, user: CurrentUser):
     target = db.scalar(select(CareerTarget).where(CareerTarget.id == target_id, CareerTarget.user_id == user.id))
     if target is None:
         raise _not_found()
     rows = db.scalars(select(CareerTask).where(CareerTask.target_id == target_id, CareerTask.user_id == user.id).order_by(CareerTask.created_at)).all()
-    return [serialize_task(row) for row in rows]
+    return [serialize_task(row, db) for row in rows]
 
 
 @router.get("/tasks/{task_id}", response_model=CareerTaskResponse)
@@ -148,7 +162,7 @@ def task_status(task_id: str, db: DB, user: CurrentUser):
     row = db.scalar(select(CareerTask).where(CareerTask.id == task_id, CareerTask.user_id == user.id))
     if row is None:
         raise _not_found()
-    return serialize_task(row)
+    return serialize_task(row, db)
 
 
 @router.post("/tasks/{task_id}/evidence", response_model=EvidenceResponse, status_code=201)

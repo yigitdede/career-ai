@@ -1,5 +1,5 @@
 <script>
-function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '', statusUrl = '', verifiedAchievements = []) {
+function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '', statusUrl = '', verifiedAchievements = [], archivePdfUrl = '', restoredFromHistory = false) {
     return {
         mode: 'edit',
         locales: initial,
@@ -11,6 +11,9 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         pdfExportStatus: 'idle',
         pdfExportingLang: null,
         pdfExportError: '',
+        pdfFileName: '',
+        archivePdfUrl,
+        restoredFromHistory,
         saveStatus: 'idle',
         analyzeError: null,
         showRadar: Boolean(serverHasCv),
@@ -35,7 +38,7 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                 this.cvFileName = serverFileName || this.cvFileName;
             }
 
-            if (saved?.source === 'builder' && saved.locales) {
+            if (!this.restoredFromHistory && saved?.source === 'builder' && saved.locales) {
                 this.locales = JSON.parse(JSON.stringify(saved.locales));
             }
 
@@ -272,6 +275,8 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                 return;
             }
             this.pdfExportError = '';
+            const rawName = this.locales[this.previewLang]?.personal?.full_name || 'cv';
+            this.pdfFileName = this.pdfFileName || `${rawName} CV`;
             if (this.pdfExportStatus === 'error') {
                 this.pdfExportStatus = 'idle';
             }
@@ -300,14 +305,25 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
             await this.waitForPreviewRender();
 
             const el = document.getElementById('harvard-preview');
-            const name = (this.locales[lang].personal.full_name || 'cv').replace(/\s+/g, '-').toLowerCase();
-            const filename = name + '-cv-' + lang + '.pdf';
+            const chosen = this.pdfFileName.trim().replace(/[\\/:*?"<>|]/g, '-');
+            if (!chosen) {
+                this.pdfExportError = this.uiLabels[this.panelLocale].pdf_file_name_required;
+                this.pdfExportStatus = 'error'; this.pdfExportingLang = null; this.previewLang = previous; return;
+            }
+            const filename = (chosen.toLowerCase().endsWith('.pdf') ? chosen : chosen + '.pdf');
 
             try {
-                if (typeof window.exportHarvardCvPdf !== 'function') {
-                    throw new Error('exportHarvardCvPdf missing');
+                if (typeof window.renderHarvardCvPdf !== 'function' || typeof window.downloadPdfBlob !== 'function') {
+                    throw new Error('PDF exporter missing');
                 }
-                await window.exportHarvardCvPdf(el, filename);
+                const blob = await window.renderHarvardCvPdf(el, filename);
+                const form = new FormData();
+                form.append('pdf', blob, filename); form.append('display_name', filename); form.append('language', lang); form.append('builder_data', JSON.stringify(this.locales));
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(this.archivePdfUrl, { method: 'POST', headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}), Accept: 'application/json' }, body: form });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.message || this.uiLabels[this.panelLocale].pdf_archive_error);
+                window.downloadPdfBlob(blob, filename);
                 this.pdfExportStatus = 'done';
                 this.pdfModalOpen = false;
             } catch (error) {

@@ -110,6 +110,46 @@ html:not(.dark) { color-scheme: light; }
         @apply cursor-not-allowed rounded-xl bg-slate-200 px-5 py-2 text-sm text-slate-500 dark:bg-slate-800 dark:text-slate-400;
     }
 
+    .panel-platform-combobox {
+        @apply relative;
+    }
+
+    .panel-platform-trigger {
+        @apply pr-9;
+    }
+
+    .panel-platform-toggle {
+        @apply absolute top-1/2 right-2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200;
+    }
+
+    .panel-platform-menu {
+        @apply absolute z-[80] max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900;
+    }
+
+    .panel-platform-menu-down {
+        @apply top-full mt-1;
+    }
+
+    .panel-platform-menu-up {
+        @apply bottom-full mb-1;
+    }
+
+    .panel-platform-option {
+        @apply flex w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800;
+    }
+
+    .panel-platform-option-active {
+        @apply bg-slate-100 font-medium text-slate-900 dark:bg-slate-800 dark:text-white;
+    }
+
+    .panel-profile-links-stack {
+        @apply relative z-20;
+    }
+
+    .panel-profile-save-row {
+        @apply relative z-0;
+    }
+
     .panel-shell {
         @apply min-h-screen min-w-0;
     }

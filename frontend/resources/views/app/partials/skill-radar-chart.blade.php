@@ -33,6 +33,16 @@
         [$tx, $ty] = $radarPoint($i, $n, (float) $skill['target']);
         $targetPoly[] = "{$tx},{$ty}";
     }
+
+    $analysisDate = (string) ($skillRadar['analyzed_at'] ?? '');
+    try {
+        $analysisDate = $analysisDate !== '' ? \Illuminate\Support\Carbon::parse($analysisDate)->format('d.m.Y H:i') : '—';
+    } catch (\Throwable) {
+        $analysisDate = $analysisDate ?: '—';
+    }
+    $analysisSource = (string) ($skillRadar['source'] ?? '');
+    $sourceKey = 'panel.skill_radar.sources.'.$analysisSource;
+    $sourceLabel = $analysisSource !== '' && __($sourceKey) !== $sourceKey ? __($sourceKey) : ($analysisSource ?: '—');
 @endphp
 
 <section id="yetenek-radari" class="panel-card mb-8 overflow-hidden p-6 lg:p-8">
@@ -51,12 +61,10 @@
             </div>
             <p class="panel-muted text-sm">{{ __('panel.skill_radar.subtitle', ['role' => $skillRadar['target_role']]) }}</p>
             <p class="panel-muted mt-1 text-xs">
-                {{ __('panel.skill_radar.analyzed_at', ['date' => $skillRadar['analyzed_at']]) }}
-                · @if (! empty($cvFileDynamic))
-                    <span x-text="cvFileDisplay()"></span>
-                @else
-                    {{ __('panel.skill_radar.cv_file', ['name' => $cvFileName ?? 'cv']) }}
-                @endif
+                {{ __('panel.skill_radar.analysis_cv', ['name' => $skillRadar['file_name'] ?? $cvFileName ?? 'cv']) }}
+                · {{ __('panel.skill_radar.analysis_source', ['source' => $sourceLabel]) }}
+                · {{ __('panel.skill_radar.analyzed_at', ['date' => $analysisDate]) }}
+                · <span class="break-all font-mono">{{ __('panel.skill_radar.analysis_id', ['id' => $skillRadar['analysis_id'] ?? '—']) }}</span>
                 @if (! empty($showClearInline))
                     · <button type="button" @click="resetOpen = true"
                         class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">

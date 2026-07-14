@@ -124,14 +124,16 @@ export function panelCvRadar(labels, serverHasCv = false, serverFileName = '', c
     };
 }
 
-export function profileCvUpload(locale, analyzeUrl, statusUrl = '', redirectUrl = '') {
+export function profileCvUpload(locale, analyzeUrl, statusUrl = '', redirectUrl = '', historyAnalyzeUrl = '') {
     return {
         fileName: null,
         locale,
         analyzeUrl,
         statusUrl,
         redirectUrl,
+        historyAnalyzeUrl,
         loading: false,
+        historyLoadingId: null,
         error: null,
 
         init() {
@@ -195,6 +197,29 @@ export function profileCvUpload(locale, analyzeUrl, statusUrl = '', redirectUrl 
             } finally {
                 this.loading = false;
                 event.target.value = '';
+            }
+        },
+
+        async analyzeHistory(documentId) {
+            if (!this.historyAnalyzeUrl || this.historyLoadingId) return;
+            this.error = null;
+            this.historyLoadingId = documentId;
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            try {
+                const response = await fetch(this.historyAnalyzeUrl.replace('__DOCUMENT_ID__', encodeURIComponent(documentId)), {
+                    method: 'POST', headers: { ...(token ? { 'X-CSRF-TOKEN': token } : {}), Accept: 'application/json' },
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(payload.message || 'CV analizi başlatılamadı');
+                const completed = await pollCvAnalysis(payload.analysis_id, this.statusUrl, this.locale);
+                PanelCvStore.saveFromAnalysis(completed.file_name || 'cv', this.locale, {
+                    overall_match: completed.radar?.reduce((sum, item) => sum + Number(item.score || 0), 0) / Math.max(completed.radar?.length || 1, 1),
+                    target_role: completed.current_role || '', skills: completed.radar || [], analyzed_at: completed.created_at,
+                });
+                window.location.href = this.redirectUrl || '/panel';
+            } catch (err) {
+                this.error = err?.message || 'CV analizi başlatılamadı';
+                this.historyLoadingId = null;
             }
         },
 

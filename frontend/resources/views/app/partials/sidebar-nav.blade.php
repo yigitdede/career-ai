@@ -6,8 +6,9 @@
         ]],
         ['label' => 'panel.nav_groups.career', 'items' => [
             ['route' => 'panel.cv-builder', 'match' => 'panel.cv-builder', 'label' => 'panel.nav.cv_builder', 'icon' => 'cv'],
-            ['route' => 'panel.skill-passport', 'match' => 'panel.skill-passport', 'label' => 'panel.nav.skill_passport', 'icon' => 'passport'],
             ['route' => 'panel.roadmap', 'match' => 'panel.roadmap', 'label' => 'panel.nav.roadmap', 'icon' => 'roadmap'],
+            ['route' => 'panel.tasks', 'match' => 'panel.tasks*', 'label' => 'panel.nav.tasks', 'icon' => 'tasks'],
+            ['route' => 'panel.skill-passport', 'match' => 'panel.skill-passport', 'label' => 'panel.nav.skill_passport', 'icon' => 'passport'],
         ]],
         ['label' => 'panel.nav_groups.opportunities', 'items' => [
             ['route' => 'panel.job-matches', 'match' => 'panel.job-matches', 'label' => 'panel.nav.job_matches', 'icon' => 'jobs'],

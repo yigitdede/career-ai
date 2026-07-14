@@ -22,6 +22,11 @@
             <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                 <div class="h-full rounded-full bg-emerald-500" style="width: {{ max(0, min(100, (int) ($stats['readiness'] ?? 0))) }}%"></div>
             </div>
+            @if (! empty($stats['target_ready']))
+                <p class="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">{{ __('panel.dashboard.readiness_target_ready') }}</p>
+            @else
+                <p class="panel-muted mt-1 text-xs">{{ __('panel.dashboard.readiness_hybrid_hint', ['baseline' => (int) ($stats['baseline'] ?? 0)]) }}</p>
+            @endif
         </div>
         <div class="panel-card p-6">
             <p class="panel-muted text-sm">{{ __('panel.dashboard.target_career') }}</p>

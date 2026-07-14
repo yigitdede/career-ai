@@ -58,6 +58,11 @@ class CvUploadController extends PanelController
 
         $locale = $validated['locale'] ?? app()->getLocale();
         $locales = $validated['locales'];
+        if (! BuilderCvTextExporter::hasCareerContent($locales, $locale)) {
+            return response()->json([
+                'message' => __('panel.cv_builder.analyze_too_short'),
+            ], 422);
+        }
         $cvText = BuilderCvTextExporter::toText($locales, $locale);
 
         if (strlen($cvText) < 40) {
@@ -102,6 +107,18 @@ class CvUploadController extends PanelController
         }
 
         return response()->json($result['body'] ?? ['status' => 'cleared']);
+    }
+
+    public function archiveGeneratedPdf(Request $request, CareerTalentApiClient $api): JsonResponse
+    {
+        $validated = $request->validate([
+            'pdf' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+            'display_name' => ['required', 'string', 'max:250'],
+            'language' => ['required', 'in:tr,en'],
+            'builder_data' => ['required', 'json', 'max:1000000'],
+        ]);
+        $result = $api->archiveGeneratedCv($request->file('pdf'), $validated['display_name'], $validated['language'], $validated['builder_data']);
+        return ($result['ok'] ?? false) ? response()->json($result['body'], 201) : response()->json(['message' => $result['error'] ?? 'CV arşivlenemedi'], $result['status'] ?? 502);
     }
 
 }

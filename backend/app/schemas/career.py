@@ -55,10 +55,11 @@ class CareerAnalysisAI(BaseModel):
         return self
 
 
-class TrainingSuggestion(BaseModel):
+class TrainingSearchQuery(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    catalog_id: str = Field(min_length=1, max_length=80)
-    rank: int = Field(ge=1, le=20)
+    query: str = Field(min_length=4, max_length=240)
+    skill: str = Field(min_length=1, max_length=120)
+    reason: str = Field(min_length=2, max_length=500)
 
 
 class CareerPlanTaskAI(BaseModel):
@@ -68,7 +69,7 @@ class CareerPlanTaskAI(BaseModel):
     evidence_required: bool = True
     evidence_types: list[Literal["link", "file"]] = Field(min_length=1, max_length=4)
     skill_impacts: list[str] = Field(min_length=1, max_length=12)
-    training_suggestions: list[TrainingSuggestion] = Field(max_length=6)
+    training_queries: list[TrainingSearchQuery] = Field(max_length=4)
 
 
 class CareerPlanAI(BaseModel):
@@ -79,6 +80,9 @@ class CareerPlanAI(BaseModel):
 class CareerAnalysisResponse(BaseModel):
     id: str
     status: Literal["queued", "running", "ready", "failed"]
+    source: str
+    file_name: str | None = None
+    cv_document_id: str | None = None
     current_role: str | None = None
     profile: dict
     skills: list
@@ -110,12 +114,16 @@ class CareerTaskResponse(BaseModel):
     target_id: str
     title: str
     hint: str
+    note: str = ""
     status: str
     evidence_required: bool
     evidence_types: list
     skill_impacts: list
     training_suggestions: list
     feedback: str | None = None
+    has_evidence: bool = False
+    evidence_verified: bool = False
+    evidence_pending: bool = False
 
 
 class EvidenceCreateRequest(BaseModel):

@@ -13,6 +13,7 @@ rsync -a --delete \
   --exclude 'frontend/node_modules' \
   --exclude 'frontend/vendor' \
   --exclude 'frontend/.env' \
+  --exclude 'backend/.env' \
   --exclude 'backend/.venv' \
   --exclude '.superpowers' \
   "$SRC/" "$DEST/"
@@ -26,8 +27,13 @@ echo "→ npm ci + build"
 npm ci --silent 2>/dev/null || npm ci
 npm run build
 
+echo "→ FastAPI forward migration"
+cd "$DEST/backend"
+DEBUG=false .venv/bin/alembic upgrade head
+
 echo "→ landing export"
 bash "$DEST/scripts/build-landing.sh"
+cd "$DEST/frontend"
 
 echo "→ storage dirs"
 mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
@@ -48,6 +54,21 @@ sudo -u yigit php artisan config:cache
 sudo -u yigit php artisan route:cache
 sudo -u yigit php artisan view:clear
 sudo -u yigit php artisan view:cache
+
+echo "→ backend services restart"
+systemctl restart careertalent-fastapi.service careertalent-celery.service
+systemctl is-active --quiet careertalent-fastapi.service
+systemctl is-active --quiet careertalent-celery.service
+for attempt in {1..15}; do
+  if curl -fsS --max-time 3 http://127.0.0.1:8000/health >/dev/null; then
+    break
+  fi
+  if [[ "$attempt" == 15 ]]; then
+    echo "FastAPI health timeout" >&2
+    exit 1
+  fi
+  sleep 1
+done
 
 echo "→ smoke (origin)"
 for path in / /panel /panel/kariyer-profilim /panel/cv-merkezi /panel/kariyer-rotam /panel/yetenek-pasaportu; do

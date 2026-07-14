@@ -4,9 +4,31 @@ namespace App\Http\Controllers\App;
 
 use App\Services\CareerTalentApiClient;
 use App\Services\PanelTargetRoleStore;
+use App\Services\TaskReadinessCalculator;
+use Illuminate\Http\JsonResponse;
 
 class RoadmapController extends PanelController
 {
+    public function planStatus(string $targetId, CareerTalentApiClient $api): JsonResponse
+    {
+        $result = $api->careerTarget($targetId);
+        if (! ($result['ok'] ?? false) || ! is_array($result['body'] ?? null)) {
+            return response()->json(['message' => $result['error'] ?? 'Plan durumu alınamadı.'], $result['status'] ?? 502);
+        }
+        $target = $result['body'];
+        $tasks = [];
+        if (in_array($target['status'] ?? null, ['active', 'ready'], true)) {
+            $tasks = $this->listFromBody($api->careerTargetTasks($targetId)['body'] ?? null);
+        }
+
+        return response()->json([
+            'target_id' => $target['id'] ?? $targetId,
+            'status' => $target['status'] ?? 'queued',
+            'task_count' => count($tasks),
+            'message' => $target['plan']['message'] ?? null,
+        ]);
+    }
+
     public function show(CareerTalentApiClient $api)
     {
         $analysisResult = $api->currentCareerAnalysis();
@@ -19,11 +41,15 @@ class RoadmapController extends PanelController
             $tasks = $this->listFromBody($taskResult['body'] ?? null);
         }
 
-        $readiness = $this->readiness($analysis, $target);
+        $readinessStats = TaskReadinessCalculator::summary($tasks, $target, $analysis);
         return $this->panelView('app.roadmap', [
             'stats' => [
                 'career' => (string) ($target['title'] ?? ($analysis['current_role'] ?? '')),
-                'readiness' => $readiness,
+                'readiness' => $readinessStats['readiness'],
+                'baseline' => $readinessStats['baseline'],
+                'target_ready' => $readinessStats['target_ready'],
+                'done' => $readinessStats['done'],
+                'total' => $readinessStats['total'],
             ],
             'roadmapTasks' => $tasks,
             'selectedTarget' => $target,
@@ -69,24 +95,6 @@ class RoadmapController extends PanelController
                 ],
             ];
         }, array_values(array_filter($roles, 'is_array')));
-    }
-
-    private function readiness(array $analysis, ?array $target): int
-    {
-        if ($target && isset($target['readiness'])) {
-            return (int) $target['readiness'];
-        }
-        $roles = is_array($analysis['career_ladder'] ?? null) ? $analysis['career_ladder'] : [];
-        if ($target && ! empty($target['title'])) {
-            foreach ($roles as $role) {
-                if (is_array($role) && ($role['title'] ?? null) === $target['title']) {
-                    return (int) ($role['readiness'] ?? 0);
-                }
-            }
-        }
-        $scores = array_values(array_filter(array_map(static fn ($role) => is_array($role) ? (int) ($role['readiness'] ?? 0) : null, $roles), static fn ($score) => $score !== null));
-
-        return $scores === [] ? 0 : max($scores);
     }
 
     /** @param list<array<string, mixed>> $tasks */

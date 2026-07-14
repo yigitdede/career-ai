@@ -16,7 +16,8 @@
 <section
     id="kariyer-merdiveni"
     class="mb-10"
-    x-data="{ openRole: null, hasSelection: @js($hasLadderSelection) }"
+    x-data="{ expandedRoles: {} }"
+    data-selected-role-id="{{ $selectedLadderRoleId ?? '' }}"
 >
     @empty($hideSectionHeader)
     <div class="mb-4">
@@ -44,6 +45,9 @@
                                 $isRoleCollapsed = $hasLadderSelection && ! $isRoleSelected;
                             @endphp
                             <article
+                                data-career-role="{{ $roleKey }}"
+                                data-swot-default-open="{{ ! $hasLadderSelection || $isRoleSelected ? 'true' : 'false' }}"
+                                data-swot-toggleable="{{ $isRoleCollapsed ? 'true' : 'false' }}"
                                 @class([
                                     'panel-card',
                                     'panel-card-ladder-selected p-5' => $isRoleSelected,
@@ -59,7 +63,7 @@
                                                 %{{ $role['readiness'] }}
                                             </span>
                                         </div>
-                                        @unless ($isRoleCollapsed)
+                                        @if (! $isRoleCollapsed)
                                             <p class="text-sm text-slate-600 dark:text-slate-400">
                                                 {{ __('panel.career_ladder.gaps', ['count' => $role['gap_count']]) }}:
                                                 {{ $role['gaps_summary'] }}
@@ -67,7 +71,17 @@
                                             @if ($role['weeks_estimate'])
                                                 <p class="mt-1 text-xs text-slate-500">{{ __('panel.career_ladder.estimate') }}: {{ $role['weeks_estimate'] }}</p>
                                             @endif
-                                        @endunless
+                                        @else
+                                            <div x-show="expandedRoles[@js($roleKey)]" x-cloak>
+                                                <p class="text-sm text-slate-600 dark:text-slate-400">
+                                                    {{ __('panel.career_ladder.gaps', ['count' => $role['gap_count']]) }}:
+                                                    {{ $role['gaps_summary'] }}
+                                                </p>
+                                                @if ($role['weeks_estimate'])
+                                                    <p class="mt-1 text-xs text-slate-500">{{ __('panel.career_ladder.estimate') }}: {{ $role['weeks_estimate'] }}</p>
+                                                @endif
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="flex shrink-0 flex-wrap gap-2">
                                         <form method="POST" action="{{ route('panel.career-ladder.select') }}">
@@ -92,15 +106,16 @@
                                                 </button>
                                             @endif
                                         </form>
-                                        @unless ($hasLadderSelection)
+                                        @if ($isRoleCollapsed)
                                             <button
                                                 type="button"
-                                                @click="openRole = openRole === @js($roleTitle) ? null : @js($roleTitle)"
+                                                @click="expandedRoles[@js($roleKey)] = !expandedRoles[@js($roleKey)]"
                                                 class="panel-outline-btn"
+                                                :aria-expanded="Boolean(expandedRoles[@js($roleKey)])"
                                             >
-                                                <span x-text="openRole === @js($roleTitle) ? @js(__('panel.career_ladder.swot_hide')) : @js(__('panel.career_ladder.swot_show'))"></span>
+                                                <span x-text="expandedRoles[@js($roleKey)] ? @js(__('panel.career_ladder.swot_hide')) : @js(__('panel.career_ladder.swot_show'))"></span>
                                             </button>
-                                        @endunless
+                                        @endif
                                     </div>
                                 </div>
                                 @if ($isRoleSelected)
@@ -108,7 +123,11 @@
                                         @include('app.partials.career-ladder-swot', ['role' => $role])
                                     </div>
                                 @elseif (! $hasLadderSelection)
-                                    <div x-show="openRole === @js($roleTitle)" x-cloak class="mt-4 grid gap-2 sm:grid-cols-2">
+                                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                                        @include('app.partials.career-ladder-swot', ['role' => $role])
+                                    </div>
+                                @else
+                                    <div x-show="expandedRoles[@js($roleKey)]" x-cloak class="mt-4 grid gap-2 sm:grid-cols-2">
                                         @include('app.partials.career-ladder-swot', ['role' => $role])
                                     </div>
                                 @endif

@@ -8,6 +8,23 @@ use Tests\TestCase;
 
 class CvBuilderAnalyzeTest extends TestCase
 {
+    public function test_contact_only_builder_does_not_create_fake_ai_analysis(): void
+    {
+        $this->withoutMiddleware();
+        Http::fake();
+
+        $response = $this->postJson(route('panel.cv.analyze-builder'), [
+            'locales' => ['tr' => [
+                'personal' => ['full_name' => 'Contact Only', 'email' => 'contact@example.com', 'phone' => '05551234567', 'location' => 'İstanbul', 'summary' => ''],
+                'experience' => [], 'education' => [], 'skills' => [], 'projects' => [], 'certificates' => [],
+            ]],
+            'locale' => 'tr',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonPath('message', __('panel.cv_builder.analyze_too_short'));
+        Http::assertNothingSent();
+    }
+
     public function test_builder_analyze_route_proxies_to_api_without_local_analysis_state(): void
     {
         $this->withoutMiddleware();
