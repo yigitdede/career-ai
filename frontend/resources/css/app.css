@@ -184,6 +184,14 @@ html:not(.dark) { color-scheme: light; }
         border-right: 1px solid var(--admin-accent-border);
     }
 
+    .admin-shell .admin-sidebar {
+        @apply fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transition-transform md:relative md:z-auto md:w-auto md:translate-x-0;
+    }
+
+    .admin-shell .admin-sidebar.admin-sidebar-open {
+        @apply flex translate-x-0;
+    }
+
     .admin-shell .panel-nav-link-active {
         background: var(--admin-accent-soft);
         color: var(--admin-accent-ink);

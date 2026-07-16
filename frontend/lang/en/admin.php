@@ -10,6 +10,7 @@ return [
     ],
     'nav' => [
         'dashboard' => 'Dashboard',
+        'open_menu' => 'Open menu',
         'student_panel' => 'Student panel',
         'marketing_site' => 'Marketing site',
     ],

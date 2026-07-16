@@ -123,14 +123,18 @@ class AuthFlowTest extends TestCase
 
     public function test_admin_requires_admin_role(): void
     {
-        Http::fakeSequence()
-            ->push($this->user(false))
-            ->push($this->user(true))
-            ->push([
+        Http::fake([
+            '*/api/v1/auth/me' => Http::sequence()
+                ->push($this->user(false))
+                ->push($this->user(true)),
+            '*/health' => Http::response(['status' => 'ok']),
+            '*/api/v1/admin/dashboard' => Http::response([
                 'stats' => [],
                 'module_counts' => [],
                 'recent_students' => [],
-            ]);
+            ]),
+        ]);
+
         $this->withSession(['auth.access_token' => 'user-token'])
             ->get('/admin')
             ->assertForbidden();
@@ -138,6 +142,12 @@ class AuthFlowTest extends TestCase
         $this->withSession(['auth.access_token' => 'admin-token'])
             ->get('/admin')
             ->assertOk();
+    }
+
+    public function test_guest_admin_routes_redirect_to_admin_login(): void
+    {
+        $this->get('/admin/ogrenciler')
+            ->assertRedirect(route('admin.login'));
     }
 
     public function test_admin_login_rejects_non_admin_without_persisting_session(): void

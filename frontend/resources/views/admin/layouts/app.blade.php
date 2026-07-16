@@ -17,6 +17,7 @@
 </head>
 <body class="admin-shell min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
     x-data="{
+        sidebarOpen: false,
         theme: localStorage.getItem('panel-theme') || 'dark',
         init() { this.applyTheme(); },
         applyTheme() {
@@ -26,10 +27,18 @@
         toggleTheme() {
             this.theme = this.theme === 'dark' ? 'light' : 'dark';
             this.applyTheme();
+        },
+        closeSidebar() {
+            this.sidebarOpen = false;
         }
-    }">
+    }"
+    @keydown.escape.window="closeSidebar()">
     <div class="panel-shell">
-        <aside class="panel-sidebar" aria-label="{{ __('admin.brand') }}">
+        <div x-show="sidebarOpen" x-cloak @click="sidebarOpen = false"
+            class="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm md:hidden" aria-hidden="true"></div>
+        <aside id="admin-sidebar" class="panel-sidebar admin-sidebar"
+            :class="sidebarOpen ? 'admin-sidebar-open' : ''"
+            aria-label="{{ __('admin.brand') }}">
             <div class="flex h-full min-h-0 flex-col p-6">
                 <a href="{{ route('admin.dashboard') }}" class="admin-brand mb-8 block shrink-0 text-lg font-bold">{{ __('admin.brand') }}</a>
                 <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain text-sm">
@@ -49,6 +58,5 @@
             </main>
         </div>
     </div>
-    @livewireScripts
 </body>
 </html>

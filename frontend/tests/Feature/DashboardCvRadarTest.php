@@ -26,6 +26,14 @@ class DashboardCvRadarTest extends TestCase
         ]);
 
         $response = $this->get(route('panel.dashboard'));
-        $response->assertOk()->assertSee('id="yetenek-radari"', false)->assertSee('İş Analisti', false)->assertSee('%86', false)->assertSee(__('panel.skill_radar.from_cv_analysis'), false);
+        $response->assertOk()
+            ->assertSee('id="yetenek-radari"', false)
+            ->assertSee('data-dashboard-cv-actions', false)
+            ->assertSee(__('panel.dashboard.cv_section_title'), false)
+            ->assertSee('href="'.route('panel.account').'#cv-yukle"', false)
+            ->assertSee('href="'.route('panel.cv-builder').'"', false)
+            ->assertSee('İş Analisti', false)
+            ->assertSee('%86', false)
+            ->assertSee(__('panel.skill_radar.from_cv_analysis'), false);
     }
 }

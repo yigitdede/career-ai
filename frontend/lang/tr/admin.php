@@ -10,6 +10,7 @@ return [
     ],
     'nav' => [
         'dashboard' => 'Dashboard',
+        'open_menu' => 'Menüyü aç',
         'student_panel' => 'Öğrenci paneli',
         'marketing_site' => 'Tanıtım sitesi',
     ],

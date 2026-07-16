@@ -15,19 +15,28 @@ class EnsureApiAuthenticated
     {
         $token = $request->session()->get('auth.access_token');
         if (! is_string($token) || $token === '') {
-            return redirect()->guest(route('login'));
+            return redirect()->guest($this->loginRoute($request));
         }
 
         $result = $this->api->me($token);
         if (! $result['ok']) {
             $request->session()->forget('auth');
 
-            return redirect()->guest(route('login'));
+            return redirect()->guest($this->loginRoute($request));
         }
 
         $request->session()->put('auth.user', $result['body']);
         $request->attributes->set('auth.user', $result['body']);
 
         return $next($request);
+    }
+
+    private function loginRoute(Request $request): string
+    {
+        if ($request->is('admin', 'admin/*') && ! $request->is('admin/login')) {
+            return route('admin.login');
+        }
+
+        return route('login');
     }
 }

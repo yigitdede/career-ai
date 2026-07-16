@@ -11,7 +11,7 @@ import {
     removeOptionalSectionFromBothLocales,
 } from './cv-optional-sections';
 import { initCareersWizard } from './careers-wizard';
-import { initMarketingMotion } from './marketing-motion';
+import './panel-shell';
 import { careerTasks } from './panel-career-tasks';
 import { skillPassport } from './panel-skill-passport';
 import { careerPlanWatcher } from './panel-career-plan';
@@ -46,9 +46,3 @@ window.CvOptionalSections = {
     optionalEntryHasContent,
     removeOptionalSectionFromBothLocales,
 };
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMarketingMotion, { once: true });
-} else {
-    initMarketingMotion();
-}
