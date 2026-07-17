@@ -163,20 +163,6 @@ return [
     ],
 
 
-    'how' => [
-        'title' => 'How It Works',
-        'intro' => 'Get ready for your target role in four steps.',
-        'step1_title' => 'Upload your CV',
-        'step1_desc' => 'Extracts skills from your PDF and lists your strengths.',
-        'step2_title' => 'Choose your target role',
-        'step2_desc' => 'See missing skills and track your readiness percentage.',
-        'step3_title' => 'Progress week by week',
-        'step3_desc' => 'Tasks, learning resources, and an AI assistant guide your prep.',
-        'step4_title' => 'Match with job postings',
-        'step4_desc' => 'Get relevant listings when you are ready (Phase 2).',
-        'cta' => 'Sign up free',
-    ],
-
     'bootcamp' => [
         'title' => 'Bootcamp',
         'headline' => 'YZTA Bootcamp Partnership',

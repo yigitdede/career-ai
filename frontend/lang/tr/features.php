@@ -1,49 +1,125 @@
 <?php
+
 return [
-    'title' => 'Özellikler',
-    'intro' => 'Kariyer hazırlığını uçtan uca yöneten araç seti.',
-    'soon' => 'Yakında',
-    'eyebrow' => 'AI Kariyer Asistanı',
-    'cta_secondary' => 'Nasıl çalıştığını gör',
-    'section_nav' => ['toolkit' => 'Araçlar', 'chat' => 'AI Sohbet', 'more' => 'Diğer Araçlar', 'faq' => 'SSS'],
+
+    'eyebrow' => 'YAPAY ZEKÂ DESTEKLİ KARİYER İŞLETİM SİSTEMİ',
+    'title' => 'Kariyerini yönetmenin en akıllı yolu.',
+    'intro' => 'CareerTalent AI, CV\'nden mülakatına kadar iş arama sürecinin her adımını veriyle yönlendiren tek platform. Tahminle değil, stratejiyle ilerle.',
+    'cta_secondary' => 'AI Sohbetini Gör',
+
+    'section_nav' => [
+        'toolkit' => 'Araç Seti',
+        'chat' => 'AI Sohbet',
+        'more' => 'Diğer Özellikler',
+        'faq' => 'SSS',
+    ],
+
     'toolkit' => [
-        'eyebrow' => 'Temel Döngü',
-        'title' => 'Birbirine bağlı beş araç.',
-        'desc' => "CV'nizi bir kez yükleyin. Aşağıdaki her adım, çıktısını bir sonrakine devreder — ham bir özgeçmişten haftalık bir plana kadar.",
+        'eyebrow' => 'ÇEKİRDEK ARAÇ SETİ',
+        'title' => '5 adımda, iş bulma sürecini yeniden yaz.',
+        'desc' => 'Her modül bir öncekinin çıktısını kullanır: CV\'nden çıkan eksikler rotana, rotan da somut adımlara dönüşür.',
     ],
-    'step_label' => 'Adım',
-    'live_label' => 'Şu an aktif',
-    'chat_cta' => "CareerTalent'a Sor",
-    'also_included' => 'Ayrıca dahil',
-    'more_tools_desc' => 'İhtiyaç duydukça tek başlarına da kullanabileceğiniz araçlar.',
-    'add_on_label' => 'Ek özellik',
-    'value_props' => [
-        'speed' => ['title' => 'Saniyeler İçinde Analiz', 'desc' => 'Manuel veri girişi yok — profiliniz ve yetenekleriniz, yüklemenizle birlikte anında oluşturulur.'],
-        'evidence' => ['title' => 'Tahmin Değil, Kanıt', 'desc' => 'Her eksik, gerçek iş ilanlarına göre ölçülür — pazarın gerçekte ne istediğini bilirsiniz.'],
-        'action' => ['title' => 'Aksiyon Odaklı', 'desc' => 'Eksikleri bilmek yetmez — her biri yol haritanızda somut bir göreve dönüşür.'],
-    ],
-    'faq' => ['eyebrow' => 'SSS', 'title' => 'Sorular, cevaplandı.'],
-    'faqs' => [
-        ['q' => "CV'm ve kişisel verilerim güvende mi?", 'a' => "CV'niz ve sonuçlarınız yalnızca kendi CareerTalent hesabınız için kullanılır — asla paylaşılmaz veya satılmaz."],
-        ['q' => 'CV analizi hangi dilleri destekliyor?', 'a' => "Hem Türkçe hem İngilizce CV'ler çalışır; hazırlık skorunuz ve yol haritanız başvurduğunuz pazara göre uyarlanır."],
-        ['q' => 'Hazırlık Skorum nasıl hesaplanıyor?', 'a' => "CV'nizi hedef mesleğinizin gerçek gereksinimleriyle karşılaştırıp, her eksiği o meslekte genelde ne kadar önemli olduğuna göre tartıyoruz."],
-        ['q' => 'İstediğim zaman iptal edebilir miyim?', 'a' => 'Evet — hesabınızı istediğiniz zaman ayarlardan yönetebilir veya iptal edebilirsiniz.'],
-        ['q' => 'Bu, bir kariyer koçunun veya mentorun yerini tutar mı?', 'a' => "Hayır — bir hazırlık aracı olarak düşünün. CV'nizi, planınızı ve mülakat cevaplarınızı hızlıca hazırlar, böylece gerçek bir mentorla geçirdiğiniz zaman daha verimli olur."],
-    ],
-    'closing_title' => 'Tam olarak nereye gittiğinizi görün.',
+    'step_label' => 'ADIM',
+
     'items' => [
-        'cv_analysis' => ['name' => 'Akıllı CV Ayrıştırma', 'desc' => "CV'nizi bir kez yükleyin — saniyeler içinde yapılandırılmış bir yetenek profiline dönüştürelim, elle veri girişi yok."],
-        'cv_builder' => ['name' => 'CV Oluşturucu', 'desc' => 'Türkçe veya İngilizce, Harvard formatında, ATS uyumlu bir CV oluşturun ve düzgün bir PDF olarak indirin.'],
-        'career_ladder' => ['name' => 'Kariyer Merdiveni', 'desc' => 'Hangi mesleklere şu an hazır olduğunuzu, hangilerine yakın olduğunuzu ve hangilerinin uzun vadede hedeflenmeye değer olduğunu net görün.'],
-        'readiness_score' => ['name' => 'Hazırlık Skoru', 'desc' => 'Her hedef meslek için net bir hazırlık yüzdesi — nerede durduğunuzu her zaman bilin.'],
-        'swot' => ['name' => 'SWOT Analizi', 'desc' => "Gerçek CV'nizden oluşturulan kanıta dayalı bir SWOT kartı — güçlü yönleriniz ve kapatmaya değer eksikleriniz."],
-        'roadmap' => ['name' => 'Haftalık Yol Haritası', 'desc' => 'Her eksik yetenek somut bir haftalık göreve dönüşür, böylece ilerlemenizi gerçekten takip edebilirsiniz.'],
-        'learning' => ['name' => 'Eğitim ve Sertifikalar', 'desc' => 'Eksiklerinize göre seçilmiş ücretsiz ve ücretli kurslar — CareerTalent kendi kurslarını asla satmaz.'],
-        'skill_passport' => ['name' => 'Yetenek Pasaportu', 'desc' => "CV'nizdeki her iddiayı gerçek kanıtlarla destekleyin — projeler, GitHub ve sertifikalar."],
-        'job_radar' => ['name' => 'İş Radarı', 'desc' => 'Herhangi bir iş ilanını yapıştırın, uyum skorunuzu ve eksiği kapatmak için ne gerektiğini anında görün.'],
-        'applications' => ['name' => 'Başvuru Takibi', 'desc' => 'Tüm başvurularınızı tek bir yerde tutun: kaydedildi, başvuruldu, mülakat aşamasında.'],
-        'interview_sim' => ['name' => 'Mülakat Simülasyonu', 'desc' => 'Hedef mesleğinize ve gerçek eksiklerinize göre oluşturulmuş AI sorularıyla pratik yapın.'],
-        'mentor_support' => ['name' => 'Uzman Desteği', 'desc' => "CV'niz, portfolyonuz veya mülakat performansınız önemli olmadan önce gerçek bir uzmana inceletin."],
-        'chat' => ['name' => 'CareerTalent AI Asistanı', 'desc' => 'İstediğiniz zaman konuşun — mülakat tavsiyesi alın, eksikleriniz hakkında sorun, bir sonraki adımınızı birlikte bulun.'],
+        'cv_merkezi' => [
+            'name' => 'CV Merkezi',
+            'desc' => 'CV\'ni saniyeler içinde ayrıştırır, radar grafiğiyle sektör ortalamana göre güçlü ve eksik yönlerini görselleştirir.',
+        ],
+        'cv_olusturucu' => [
+            'name' => 'CV Oluşturucu',
+            'desc' => 'Harvard formatında, ATS dostu bir motorla Türkçe ve İngilizce CV\'ni aynı anda, aynı veriden üretir.',
+        ],
+        'kariyer_rotam' => [
+            'name' => 'Kariyer Rotam',
+            'desc' => 'Analizde ortaya çıkan boşlukları, haftalık ve takip edilebilir somut adımlardan oluşan bir yol haritasına çevirir.',
+        ],
+        'yetenek_pasaportu' => [
+            'name' => 'Yetenek Pasaportu',
+            'desc' => 'GitHub projelerin, sertifikaların ve çalışmaların; doğrulanabilir tek bir kanıt kasasında toplanır.',
+        ],
+        'is_firsatlari' => [
+            'name' => 'İş Fırsatları',
+            'desc' => 'Açık ilanları profiline göre analiz eder, sana en uygun pozisyonları puanlayarak öne çıkarır.',
+        ],
+        'gorevlerim' => [
+            'name' => 'Görevlerim',
+            'desc' => 'AI\'ın önerdiği görevleri ve kendi notlarını tek panoda topladığın kişisel sorumluluk alanın.',
+        ],
+        'basvurularim' => [
+            'name' => 'Başvurularım',
+            'desc' => 'Başvurdun, mülakata girdin, teklif geldi ya da reddedildin; tüm süreci uçtan uca izleyen kişisel CRM\'in.',
+        ],
+        'mulakat_hazirligi' => [
+            'name' => 'Mülakat Hazırlığı',
+            'desc' => 'Sektörüne özel gerçek sorularla, AI karşında canlı bir mülakat provası yapmanı sağlar.',
+        ],
+        'uzmanlardan_destek' => [
+            'name' => 'Uzmanlardan Destek',
+            'desc' => 'Sektöründeki deneyimli uzmanlardan birebir CV ve kariyer değerlendirmesi al.',
+        ],
     ],
+
+    'more' => [
+        'eyebrow' => 'PAKETE DAHİL',
+        'title' => 'İşi bitirmek için gereken her şey.',
+        'desc' => 'Beş çekirdek aracın ötesinde, süreci baştan sona tamamlayan dört modül daha.',
+    ],
+
+    'chat' => [
+        'eyebrow' => 'HER ZAMAN YANINDA',
+        'title' => 'Bir asistan değil, kariyer stratejistin.',
+        'desc' => 'CareerTalent AI, platformdaki her modülün verisini okur; sorularını CV\'ne, rotana ve başvurularına göre, bağlamı bilerek yanıtlar.',
+        'live_label' => 'Canlı',
+        'typing_label' => 'AI yazıyor',
+        'tabs' => [
+            'career' => 'Kariyer Sohbeti',
+            'interview' => 'Mülakat Simülasyonu',
+        ],
+        'messages_career' => [
+            ['role' => 'user', 'text' => 'Radar analizimde en zayıf yönüm neydi?'],
+            ['role' => 'ai', 'text' => 'Liderlik deneyimin sektör ortalamasının belirgin şekilde altında. Rotana bunu kapatacak 2 haftalık bir adım ekledim.'],
+            ['role' => 'user', 'text' => 'Buna uygun açık bir pozisyon var mı?'],
+        ],
+        'messages_interview' => [
+            ['role' => 'ai', 'text' => 'Takım içinde yaşadığın bir anlaşmazlığı nasıl çözdüğünü anlatır mısın?'],
+            ['role' => 'user', 'text' => 'Geçen dönem bir proje teslim tarihinde ekip arkadaşımla önceliklerimiz çakışmıştı...'],
+            ['role' => 'ai', 'text' => 'Güçlü bir örnek. Sonucu somut bir rakamla desteklersen etkisi daha da artar.'],
+        ],
+    ],
+
+    'faq' => [
+        'eyebrow' => 'MERAK EDİLENLER',
+        'title' => 'Sorularının çoğu muhtemelen burada.',
+        'items' => [
+            [
+                'q' => 'CareerTalent AI tam olarak ne yapıyor?',
+                'a' => 'CV analizinden mülakat provasına kadar iş arama sürecinin tamamını tek platformda, veriye dayalı adımlarla yönetmeni sağlar.',
+            ],
+            [
+                'q' => 'CV\'mi yüklemem güvenli mi?',
+                'a' => 'Evet. Belgelerin şifreli olarak saklanır, yalnızca senin analiz ve önerilerini üretmek için işlenir ve üçüncü taraflarla paylaşılmaz.',
+            ],
+            [
+                'q' => 'CV Oluşturucu hangi dilleri destekliyor?',
+                'a' => 'Şu an Türkçe ve İngilizce olarak, aynı veriden iki ayrı ATS uyumlu CV üretebiliyorsun.',
+            ],
+            [
+                'q' => 'Uzman desteği abonelik ücretine dahil mi?',
+                'a' => 'Platformun temel araçları abonelikle sınırsız kullanılır; birebir uzman görüşmeleri ayrı bir seans olarak satın alınır.',
+            ],
+            [
+                'q' => 'Mülakat provası gerçek sorular mı içeriyor?',
+                'a' => 'Evet, başvurduğun pozisyona ve sektöre özel, gerçek mülakatlarda sıkça karşılaşılan soru kalıplarından üretilir.',
+            ],
+        ],
+    ],
+
+    'cta' => [
+        'title' => 'Kariyerinin kontrolünü bugün al.',
+        'desc' => 'CV\'ni yükle, ilk analiz raporunu dakikalar içinde ücretsiz gör.',
+        'primary' => 'Ücretsiz Kaydol',
+        'secondary' => 'Zaten hesabım var',
+    ],
+
 ];
