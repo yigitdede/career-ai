@@ -61,6 +61,26 @@ def test_invoke_sends_schema_and_accepts_fenced_content_blocks(monkeypatch):
     assert "Zorunlu JSON Schema" in captured["prompt"]
 
 
+def test_invoke_retries_once_when_first_structured_output_is_invalid(monkeypatch):
+    responses = iter([
+        SimpleNamespace(content='{"decision":"revise"}'),
+        SimpleNamespace(content='{"decision":"revise","confidence":0.6,"feedback":"Kanıtı güçlendir"}'),
+    ])
+    calls = []
+
+    def invoke(_messages):
+        calls.append(True)
+        return next(responses)
+
+    monkeypatch.setattr(career_engine, "ai_configured", lambda: True)
+    monkeypatch.setattr(career_engine, "create_chat_model", lambda: SimpleNamespace(invoke=invoke))
+
+    result = career_engine._invoke("kanıtı incele", career_engine.EvidenceReviewAI)
+
+    assert result.feedback == "Kanıtı güçlendir"
+    assert len(calls) == 2
+
+
 def test_cv_text_is_authenticated_and_queued(client, monkeypatch):
     register(client)
     monkeypatch.setattr(career_tasks.analyze_cv_task, "delay", lambda _analysis_id: None)

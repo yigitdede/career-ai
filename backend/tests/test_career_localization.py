@@ -152,6 +152,35 @@ def test_new_analysis_stores_both_panel_languages_independent_of_cv_language(cli
     db.close()
 
 
+def test_new_analysis_releases_database_transaction_during_ai_calls(client, monkeypatch):
+    register_and_headers(client)
+    db = db_session()
+    row = CareerAnalysis(
+        id="transaction-safe-analysis",
+        user_id=1,
+        status="queued",
+        source="upload",
+        cv_text="Experienced data analyst with SQL and dashboard projects.",
+    )
+    db.add(row)
+    db.commit()
+
+    def fake_invoke(_prompt, schema):
+        assert db.in_transaction() is False
+        if schema is CareerAnalysisAI:
+            return CareerAnalysisAI.model_validate(analysis_payload())
+        if schema is CareerAnalysisLocalizationsAI:
+            return CareerAnalysisLocalizationsAI.model_validate(analysis_localizations_payload())
+        raise AssertionError(schema)
+
+    monkeypatch.setattr(career_engine, "_invoke", fake_invoke)
+
+    result = career_engine.analyze_row(db, row)
+
+    assert result.status == "ready"
+    db.close()
+
+
 def test_new_plan_localizes_task_text_but_preserves_external_course_title(client, monkeypatch):
     register_and_headers(client)
     db = db_session()
@@ -216,6 +245,62 @@ def test_new_plan_localizes_task_text_but_preserves_external_course_title(client
     db.close()
 
 
+def test_new_plan_releases_database_transaction_during_ai_and_training_calls(client, monkeypatch):
+    register_and_headers(client)
+    db = db_session()
+    analysis = CareerAnalysis(
+        id="transaction-safe-plan-analysis",
+        user_id=1,
+        status="ready",
+        source="upload",
+        current_role="Veri Analisti",
+        profile={},
+        skills=[{"name": "SQL", "score": 80}],
+        radar=[],
+        career_ladder=[],
+        localizations={
+            "tr": {"current_role": "Veri Analisti", "profile": {}, "skills": [{"name": "SQL", "score": 80}], "radar": [], "career_ladder": []},
+            "en": {"current_role": "Data Analyst", "profile": {}, "skills": [{"name": "SQL", "score": 80}], "radar": [], "career_ladder": []},
+        },
+    )
+    target = CareerTarget(id="transaction-safe-target", user_id=1, title="Data Engineer", source="custom", status="queued")
+    db.add_all([analysis, target])
+    db.commit()
+
+    def fake_invoke(_prompt, schema):
+        assert db.in_transaction() is False
+        if schema is CareerPlanAI:
+            return CareerPlanAI.model_validate({
+                "target_title": "Veri Mühendisi",
+                "tasks": [{
+                    "title": "Bir veri hattı geliştir",
+                    "hint": "Python ve SQL kullan",
+                    "evidence_required": True,
+                    "evidence_types": ["link"],
+                    "skill_impacts": ["Veri modelleme"],
+                    "training_queries": [{"query": "data engineering course", "skill": "Data Engineering", "reason": "Beceri açığı"}],
+                }],
+            })
+        if schema is CareerPlanLocalizationsAI:
+            return CareerPlanLocalizationsAI.model_validate({
+                "tr": {"target_title": "Veri Mühendisi", "tasks": [{"id": "0", "title": "Bir veri hattı geliştir", "hint": "Python ve SQL kullan", "skill_impacts": ["Veri modelleme"], "feedback": None}]},
+                "en": {"target_title": "Data Engineer", "tasks": [{"id": "0", "title": "Build a data pipeline", "hint": "Use Python and SQL", "skill_impacts": ["Data modeling"], "feedback": None}]},
+            })
+        raise AssertionError(schema)
+
+    def fake_search(*_args):
+        assert db.in_transaction() is False
+        return []
+
+    monkeypatch.setattr(career_engine, "_invoke", fake_invoke)
+    monkeypatch.setattr(career_engine, "search_training", fake_search)
+
+    result = career_engine.plan_target(db, target)
+
+    assert result.status == "active"
+    db.close()
+
+
 def test_skill_evidence_task_is_created_in_both_panel_languages(client):
     register_and_headers(client)
     db = db_session()
@@ -267,6 +352,37 @@ def test_legacy_content_is_backfilled_once_and_cached_for_both_languages(client,
     english = client.get("/api/v1/career/analysis/current", headers=auth)
     assert english.json()["current_role"] == "Data Analyst"
     assert calls == [CareerAnalysisLocalizationsAI]
+    db.close()
+
+
+def test_legacy_backfill_releases_database_transaction_during_ai_call(client, monkeypatch):
+    register_and_headers(client)
+    db = db_session()
+    db.add(CareerAnalysis(
+        id="transaction-safe-legacy-analysis",
+        user_id=1,
+        status="ready",
+        source="upload",
+        cv_text="English CV",
+        current_role="Data Analyst",
+        profile={"seniority": "Mid-level"},
+        skills=[{"name": "SQL", "score": 80}],
+        radar=[{"label": "Communication", "score": 70, "target": 85}],
+        career_ladder=analysis_payload()["roles"],
+        localizations={},
+    ))
+    db.commit()
+
+    def fake_invoke(_prompt, schema):
+        assert db.in_transaction() is False
+        return CareerAnalysisLocalizationsAI.model_validate(analysis_localizations_payload())
+
+    monkeypatch.setattr(career_engine, "_invoke", fake_invoke)
+
+    career_engine.ensure_career_localizations(db, 1, include_targets=False)
+
+    saved = db.get(CareerAnalysis, "transaction-safe-legacy-analysis")
+    assert set(saved.localizations) == {"tr", "en"}
     db.close()
 
 

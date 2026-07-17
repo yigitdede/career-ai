@@ -54,30 +54,36 @@ def _invoke(prompt: str, schema: type[T]) -> T:
         raise AIUnavailableError("AI sağlayıcısı yapılandırılmamış")
     try:
         contract = prompt + "\n\nZorunlu JSON Schema:\n" + json.dumps(schema.model_json_schema(), ensure_ascii=False)
-        response = create_chat_model().invoke([
+        messages = [
             SystemMessage(content="Yalnızca verilen JSON Schema ile birebir uyumlu tek JSON nesnesi üret; markdown, kod bloğu veya açıklama ekleme."),
             HumanMessage(content=contract),
-        ])
-        content = response.content
-        if isinstance(content, list):
-            raw = "".join(
-                item if isinstance(item, str) else str(item.get("text", ""))
-                for item in content
-                if isinstance(item, (str, dict))
-            )
-        else:
-            raw = str(content or "")
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        if not raw.startswith("{"):
-            start, end = raw.find("{"), raw.rfind("}")
-            if start >= 0 and end > start:
-                raw = raw[start:end + 1]
-        payload = json.loads(raw)
-        return schema.model_validate(payload)
-    except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
-        raise AIOutputError("AI yanıtı beklenen kariyer JSON şemasına uymuyor") from exc
+        ]
+        model = create_chat_model()
+        last_output_error: Exception | None = None
+        for _attempt in range(2):
+            response = model.invoke(messages)
+            content = response.content
+            if isinstance(content, list):
+                raw = "".join(
+                    item if isinstance(item, str) else str(item.get("text", ""))
+                    for item in content
+                    if isinstance(item, (str, dict))
+                )
+            else:
+                raw = str(content or "")
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            if not raw.startswith("{"):
+                start, end = raw.find("{"), raw.rfind("}")
+                if start >= 0 and end > start:
+                    raw = raw[start:end + 1]
+            try:
+                payload = json.loads(raw)
+                return schema.model_validate(payload)
+            except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
+                last_output_error = exc
+        raise AIOutputError("AI yanıtı beklenen kariyer JSON şemasına uymuyor") from last_output_error
     except (AIUnavailableError, AIOutputError):
         raise
     except Exception as exc:
@@ -237,8 +243,14 @@ def ensure_career_localizations(
             target_query = target_query.order_by(CareerTarget.created_at.desc())
         targets = list(db.scalars(target_query).all())
 
-    analysis_missing = analysis is not None and not _has_complete_localizations(analysis.localizations)
-    target_rows: list[tuple[CareerTarget, list[CareerTask]]] = []
+    analysis_work = None
+    if analysis is not None and not _has_complete_localizations(analysis.localizations):
+        analysis_work = {
+            "id": analysis.id,
+            "source": deepcopy(_analysis_source(analysis)),
+        }
+
+    target_work: list[dict[str, Any]] = []
     for target in targets:
         tasks = list(db.scalars(
             select(CareerTask)
@@ -248,25 +260,74 @@ def ensure_career_localizations(
         target_missing = not _has_complete_localizations(target.localizations)
         tasks_missing = any(not _has_complete_localizations(task.localizations) for task in tasks)
         if target_missing or tasks_missing:
-            target_rows.append((target, tasks))
+            target_work.append({
+                "id": target.id,
+                "source": deepcopy(_plan_source(target.title, [{
+                    "id": task.id,
+                    "title": task.title,
+                    "hint": task.hint,
+                    "skill_impacts": task.skill_impacts or [],
+                    "feedback": task.feedback,
+                } for task in tasks])),
+            })
 
-    if not analysis_missing and not target_rows:
+    if analysis_work is None and not target_work:
         return
 
+    db.rollback()
     try:
-        if analysis_missing and analysis is not None:
-            analysis.localizations = _localize_analysis(_analysis_source(analysis))
+        analysis_localizations = None
+        if analysis_work is not None:
+            analysis_localizations = _localize_analysis(analysis_work["source"])
 
-        for target, tasks in target_rows:
-            source = _plan_source(target.title, [{
+        target_localizations = [
+            {
+                "id": work["id"],
+                "source": work["source"],
+                "localized": _localize_plan(work["source"]),
+            }
+            for work in target_work
+        ]
+
+        if analysis_work is not None and analysis_localizations is not None:
+            current_analysis = db.scalar(select(CareerAnalysis).where(
+                CareerAnalysis.id == analysis_work["id"],
+                CareerAnalysis.user_id == user_id,
+                CareerAnalysis.status == "ready",
+            ))
+            if current_analysis is not None and not _has_complete_localizations(current_analysis.localizations):
+                if _analysis_source(current_analysis) != analysis_work["source"]:
+                    raise CareerLocalizationError("Kariyer analizi çeviri sırasında değişti")
+                current_analysis.localizations = analysis_localizations
+
+        for work in target_localizations:
+            current_target = db.scalar(select(CareerTarget).where(
+                CareerTarget.id == work["id"],
+                CareerTarget.user_id == user_id,
+            ))
+            if current_target is None:
+                continue
+            current_tasks = list(db.scalars(
+                select(CareerTask)
+                .where(CareerTask.user_id == user_id, CareerTask.target_id == current_target.id)
+                .order_by(CareerTask.created_at)
+            ).all())
+            if _has_complete_localizations(current_target.localizations) and all(
+                _has_complete_localizations(task.localizations) for task in current_tasks
+            ):
+                continue
+            current_source = _plan_source(current_target.title, [{
                 "id": task.id,
                 "title": task.title,
                 "hint": task.hint,
                 "skill_impacts": task.skill_impacts or [],
                 "feedback": task.feedback,
-            } for task in tasks])
-            localized = _localize_plan(source)
-            target.localizations = {
+            } for task in current_tasks])
+            if current_source != work["source"]:
+                raise CareerLocalizationError("Kariyer planı çeviri sırasında değişti")
+
+            localized = work["localized"]
+            current_target.localizations = {
                 locale: {
                     "title": getattr(localized, locale).target_title,
                     "task_titles": {
@@ -278,7 +339,7 @@ def ensure_career_localizations(
             }
             for locale in SUPPORTED_PANEL_LOCALES:
                 by_id = {item.id: item for item in getattr(localized, locale).tasks}
-                for task in tasks:
+                for task in current_tasks:
                     current = dict(task.localizations or {})
                     item = by_id[task.id]
                     current[locale] = {
@@ -289,6 +350,9 @@ def ensure_career_localizations(
                     }
                     task.localizations = current
         db.commit()
+    except CareerLocalizationError:
+        db.rollback()
+        raise
     except (AIUnavailableError, AIOutputError, AIProviderError, KeyError) as exc:
         db.rollback()
         raise CareerLocalizationError("Kariyer içerikleri panel diline çevrilemedi") from exc
@@ -315,6 +379,10 @@ def create_analysis(
 
 
 def analyze_row(db: Session, row: CareerAnalysis, evidence_context: list[dict] | None = None) -> CareerAnalysis:
+    row_id = row.id
+    user_id = row.user_id
+    source_kind = row.source
+    cv_text = (row.cv_text or "")[:12000]
     row.status = "running"
     db.commit()
     prompt = json.dumps({
@@ -329,9 +397,10 @@ def analyze_row(db: Session, row: CareerAnalysis, evidence_context: list[dict] |
             "Her rolün SWOT alanları kişiye ve role özel somut AI analizidir; genel/geçici metin kullanma",
             "Accepted evidence yeni bir yeteneği doğruluyorsa ilgili skill ve radar score değerini yeniden değerlendir",
         ],
-        "cv_text": (row.cv_text or "")[:12000],
+        "cv_text": cv_text,
         "accepted_evidence": evidence_context or [],
     }, ensure_ascii=False)
+    result: dict[str, Any]
     try:
         output = _invoke(prompt, CareerAnalysisAI)
         data = output.model_dump(mode="json")
@@ -344,23 +413,34 @@ def analyze_row(db: Session, row: CareerAnalysis, evidence_context: list[dict] |
         }
         localizations = _localize_analysis(source)
         canonical = localizations["tr"]
-        row.status = "ready"
-        row.current_role = canonical["current_role"]
-        row.profile = canonical["profile"]
-        row.skills = canonical["skills"]
-        row.radar = canonical["radar"]
-        row.career_ladder = canonical["career_ladder"]
-        row.localizations = localizations
-        row.error_code = row.error_message = None
-        if row.source in {"archive_uploaded", "archive_generated"}:
-            _delete_target_plan(db, row.user_id)
+        result = {
+            "status": "ready",
+            "current_role": canonical["current_role"],
+            "profile": canonical["profile"],
+            "skills": canonical["skills"],
+            "radar": canonical["radar"],
+            "career_ladder": canonical["career_ladder"],
+            "localizations": localizations,
+            "error_code": None,
+            "error_message": None,
+        }
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
-        row.status = "failed"
-        row.error_code = "ai_unavailable" if isinstance(exc, AIUnavailableError) else ("ai_invalid_output" if isinstance(exc, AIOutputError) else "ai_provider_error")
-        row.error_message = str(exc)[:500]
+        result = {
+            "status": "failed",
+            "error_code": "ai_unavailable" if isinstance(exc, AIUnavailableError) else ("ai_invalid_output" if isinstance(exc, AIOutputError) else "ai_provider_error"),
+            "error_message": str(exc)[:500],
+        }
+
+    persisted = db.scalar(select(CareerAnalysis).where(CareerAnalysis.id == row_id))
+    if persisted is None:
+        return row
+    for field, value in result.items():
+        setattr(persisted, field, value)
+    if result["status"] == "ready" and source_kind in {"archive_uploaded", "archive_generated"}:
+        _delete_target_plan(db, user_id)
     db.commit()
-    db.refresh(row)
-    return row
+    db.refresh(persisted)
+    return persisted
 
 
 def select_target(db: Session, user_id: int, title: str, source: str, job_url: str | None) -> CareerTarget:
@@ -384,20 +464,28 @@ def select_target(db: Session, user_id: int, title: str, source: str, job_url: s
 
 
 def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
+    target_id = target.id
+    user_id = target.user_id
+    target_title = target.title
     if target.status != "queued":
         return target
-    analysis = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == target.user_id, CareerAnalysis.status == "ready").order_by(CareerAnalysis.created_at.desc()))
+    analysis = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == user_id, CareerAnalysis.status == "ready").order_by(CareerAnalysis.created_at.desc()))
     if analysis is None:
         target.status = "failed"
         target.plan = {"error_code": "analysis_required"}
         db.commit()
         return target
+    analysis_context = {
+        "current_role": analysis.current_role,
+        "skills": deepcopy(analysis.skills or []),
+        "radar": deepcopy(analysis.radar or []),
+    }
     prompt = json.dumps({
         "purpose": "Seçilen mesleğe ulaşmak için kişiye özel görev ve eğitim planı üret",
-        "target_role": target.title,
-        "current_role": analysis.current_role,
-        "skills": analysis.skills,
-        "radar": analysis.radar,
+        "target_role": target_title,
+        "current_role": analysis_context["current_role"],
+        "skills": analysis_context["skills"],
+        "radar": analysis_context["radar"],
         "rules": [
             "target_title, görev title, hint ve diğer kullanıcı metinlerini Türkçe üret; CV veya hedef rolün giriş dili bunu değiştirmez",
             "Görevler somut, ölçülebilir ve hedef role doğrudan bağlı olmalı",
@@ -409,11 +497,13 @@ def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
             "training_queries.query alanını İngilizce yaz; eğitim sonucu başlığı bulunduğu orijinal dilde kalacak",
         ],
     }, ensure_ascii=False)
+    db.rollback()
     try:
         output = _invoke(prompt, CareerPlanAI)
-        db.refresh(target)
-        if target.status != "queued":
-            return target
+        current_target = db.scalar(select(CareerTarget).where(CareerTarget.id == target_id))
+        if current_target is None or current_target.status != "queued":
+            return current_target or target
+        db.rollback()
         localized = _localize_plan(_plan_source(output.target_title, [{
             "id": str(index),
             "title": item.title,
@@ -431,7 +521,9 @@ def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
                 except (TrainingSearchUnavailable, httpx.HTTPError) as exc:
                     search_errors.append(str(exc)[:200])
             task_specs.append((item, suggestions))
-        db.refresh(target)
+        target = db.scalar(select(CareerTarget).where(CareerTarget.id == target_id))
+        if target is None:
+            return current_target
         if target.status != "queued":
             return target
         tasks = []
@@ -477,7 +569,10 @@ def plan_target(db: Session, target: CareerTarget) -> CareerTarget:
         target.plan = {"tasks": tasks, "training_search": {"provider": settings.EDUCATION_SEARCH_PROVIDER, "status": "ready" if not search_errors else "partial", "errors": search_errors[:3]}}
         target.status = "active"
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
-        db.refresh(target)
+        db.rollback()
+        target = db.scalar(select(CareerTarget).where(CareerTarget.id == target_id))
+        if target is None:
+            return current_target if "current_target" in locals() else target
         if target.status != "queued":
             return target
         target.status = "failed"
