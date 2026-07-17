@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.main import app
 from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, Evidence
-from app.models.engagement import CvDocument
+from app.models.engagement import CvDocument, PersonalTask
 
 client = TestClient(app)
 
@@ -91,6 +91,7 @@ def test_cv_analyze_accepts_pdf_and_tracks_current_upload(client, monkeypatch, t
     other_task = CareerTask(id="other-task", user_id=2, target_id=other_target.id, title="FastAPI", hint="", status="pending", evidence_types=["link"], skill_impacts=["Python"])
     db.add_all([
         target, task, evidence,
+        PersonalTask(id="linked-personal-task", user_id=1, target_id=target.id, title="Portfolyo notunu düzenle", completed=False),
         CareerAnalysis(id="other-analysis", user_id=2, status="ready", source="upload", cv_text="Python FastAPI", current_role="Developer"),
         other_target, other_task,
         CvDocument(id="other-document", user_id=2, kind="uploaded", display_name="other.pdf", original_name="other.pdf", file_path=str(other_path), file_size=len(_MINIMAL_PDF), is_current=True),
@@ -111,6 +112,11 @@ def test_cv_analyze_accepts_pdf_and_tracks_current_upload(client, monkeypatch, t
     assert (tmp_path / "1" / "cv" / f"{first_id}.pdf").exists()
     assert client.get(f"/api/v1/career/analysis/{data['analysis_id']}", headers={"Authorization": f"Bearer {token}"}).status_code == 404
     assert client.get("/api/v1/career/targets", headers={"Authorization": f"Bearer {token}"}).json() == []
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    linked_personal_task = db.get(PersonalTask, "linked-personal-task")
+    assert linked_personal_task is not None
+    assert linked_personal_task.target_id is None
+    db.close()
     assert client.get("/api/v1/cv/documents", headers=other_headers).json()[0]["id"] == "other-document"
     assert client.get("/api/v1/career/analysis/other-analysis", headers=other_headers).status_code == 200
     assert client.get("/api/v1/career/targets", headers=other_headers).json()[0]["id"] == "other-target"
