@@ -44,6 +44,7 @@ return [
         'notifications' => 'Notifications',
         'notifications_empty' => 'No new notifications',
         'language' => 'Language',
+        'language_update_failed' => 'The panel language could not be changed because career content could not be translated. Please try again.',
         'mark_read' => 'Mark all as read',
     ],
     'dashboard' => [
@@ -267,6 +268,10 @@ return [
         'subtitle' => 'Your ranked role map from CV analysis. From ready now to reachable later.',
         'gaps' => ':count gaps',
         'estimate' => 'Estimated time',
+        'strengths' => 'Strengths (S)',
+        'weaknesses' => 'Weaknesses (W)',
+        'opportunities' => 'Opportunities (O)',
+        'threats' => 'Threats (T)',
         'swot_show' => 'Show SWOT',
         'swot_hide' => 'Hide SWOT',
         'select_role' => 'Select this role',

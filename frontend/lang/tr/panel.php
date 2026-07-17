@@ -44,6 +44,7 @@ return [
         'notifications' => 'Bildirimler',
         'notifications_empty' => 'Yeni bildirim yok',
         'language' => 'Dil',
+        'language_update_failed' => 'Panel dili değiştirilemedi. Kariyer içerikleri çevrilemedi; lütfen tekrar dene.',
         'mark_read' => 'Tümünü okundu işaretle',
     ],
     'dashboard' => [
@@ -267,6 +268,10 @@ return [
         'subtitle' => 'CV analizine göre sıralı meslek haritan. Şimdi uygun olandan ulaşılabilir olana.',
         'gaps' => ':count eksik',
         'estimate' => 'Tahmini süre',
+        'strengths' => 'Güçlü (S)',
+        'weaknesses' => 'Zayıf (W)',
+        'opportunities' => 'Fırsat (O)',
+        'threats' => 'Tehdit (T)',
         'swot_show' => 'SWOT göster',
         'swot_hide' => 'SWOT gizle',
         'select_role' => 'Bu mesleği seç',
