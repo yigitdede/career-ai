@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, Evidence
+from app.models.engagement import PersonalTask
 from app.models.user import User
 from app.schemas.career import (
     CareerAnalysisAI,
@@ -689,6 +690,11 @@ def remove_career_evidence_files(user_id: int, file_paths: list[str]) -> None:
 
 
 def _delete_target_plan(db: Session, user_id: int) -> dict[str, int]:
+    db.execute(
+        update(PersonalTask)
+        .where(PersonalTask.user_id == user_id, PersonalTask.target_id.is_not(None))
+        .values(target_id=None)
+    )
     return {
         "evidence": db.execute(delete(Evidence).where(Evidence.user_id == user_id)).rowcount,
         "tasks": db.execute(delete(CareerTask).where(CareerTask.user_id == user_id)).rowcount,
