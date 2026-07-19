@@ -237,6 +237,45 @@ class AdminPanelPagesTest extends TestCase
             ->assertSee('Öğrencileri görüntüle');
     }
 
+    public function test_admin_account_permissions_are_grouped_by_page_with_compact_crud_controls(): void
+    {
+        $profile = $this->superAdminSession()['auth.user'];
+        Http::fake([
+            'http://localhost:8000/api/v1/admin/accounts' => Http::response([
+                'permission_keys' => [
+                    'dashboard.view',
+                    'students.view', 'students.write', 'students.delete',
+                    'readiness.view',
+                ],
+                'accounts' => [[
+                    ...$profile,
+                    'id' => 31,
+                    'role' => 'admin',
+                    'email' => 'ops@example.com',
+                    'admin_permissions' => ['dashboard.view', 'students.view'],
+                    'created_at' => '2026-07-16T00:00:00Z',
+                ]],
+            ]),
+            'http://localhost:8000/health' => Http::response(['status' => 'ok']),
+        ]);
+
+        $response = $this->withSession($this->superAdminSession())->get('/admin/hesaplar');
+
+        $response->assertOk()
+            ->assertSee('data-permission-selector', false)
+            ->assertSee('data-permission-module="students"', false)
+            ->assertSee('data-permission-module-toggle', false)
+            ->assertSee('data-permission-options', false)
+            ->assertSee('data-permission-count', false)
+            ->assertSee('value="students.view"', false)
+            ->assertSee('value="students.write"', false)
+            ->assertSee('value="students.delete"', false)
+            ->assertSee('data-permission-single="readiness.view"', false)
+            ->assertSee('Kariyer Veri Merkezi')
+            ->assertSee('Readiness Analizi')
+            ->assertDontSee('admin.nav.', false);
+    }
+
     public function test_profile_and_admin_account_forms_forward_validated_payloads(): void
     {
         $profile = $this->superAdminSession()['auth.user'];

@@ -24,15 +24,10 @@
             <label class="text-sm font-medium">{{ __('admin.accounts.temporary_password_confirmation') }}<input class="panel-input-block mt-2" name="temporary_password_confirmation" type="password" autocomplete="new-password" required minlength="8"></label>
             <fieldset class="md:col-span-2">
                 <legend class="mb-3 text-sm font-semibold">{{ __('admin.accounts.permissions') }}</legend>
-                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    @foreach ($permissionKeys as $permission)
-                        <label class="flex items-start gap-2 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800">
-                            <input class="mt-0.5" type="checkbox" name="permissions[]" value="{{ $permission }}" @checked($permission === 'dashboard.view' || in_array($permission, old('permissions', []), true)) @disabled($permission === 'dashboard.view')>
-                            @if ($permission === 'dashboard.view')<input type="hidden" name="permissions[]" value="dashboard.view">@endif
-                            <span>{{ $permissionLabels[$permission] ?? $permission }}</span>
-                        </label>
-                    @endforeach
-                </div>
+                @include('admin.partials.permission-selector', [
+                    'permissionSelectorId' => 'create-admin',
+                    'selectedPermissions' => array_values(array_unique(array_merge(['dashboard.view'], old('permissions', [])))),
+                ])
             </fieldset>
             <div class="md:col-span-2"><button class="admin-btn-primary" type="submit">{{ __('admin.accounts.create') }}</button></div>
         </form>
@@ -57,11 +52,13 @@
                             <label class="text-sm">{{ __('admin.accounts.email') }}<input class="panel-input-block mt-2" name="email" type="email" value="{{ $account['email'] }}" required></label>
                             <label class="text-sm">{{ __('admin.accounts.status') }}<select class="panel-input-block mt-2" name="is_active"><option value="1" @selected($account['is_active'])>{{ __('admin.accounts.active') }}</option><option value="0" @selected(! $account['is_active'])>{{ __('admin.accounts.inactive') }}</option></select></label>
                             <label class="text-sm">{{ __('admin.accounts.reset_password') }}<input class="panel-input-block mt-2" name="temporary_password" type="password" autocomplete="new-password" minlength="8"></label>
-                            <fieldset class="md:col-span-2"><legend class="mb-3 text-sm font-semibold">{{ __('admin.accounts.permissions') }}</legend><div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                @foreach ($permissionKeys as $permission)
-                                    <label class="flex gap-2 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-800"><input type="checkbox" name="permissions[]" value="{{ $permission }}" @checked(in_array($permission, $account['admin_permissions'], true)) @disabled($permission === 'dashboard.view')>@if ($permission === 'dashboard.view')<input type="hidden" name="permissions[]" value="dashboard.view">@endif<span>{{ $permissionLabels[$permission] ?? $permission }}</span></label>
-                                @endforeach
-                            </div></fieldset>
+                            <fieldset class="md:col-span-2">
+                                <legend class="mb-3 text-sm font-semibold">{{ __('admin.accounts.permissions') }}</legend>
+                                @include('admin.partials.permission-selector', [
+                                    'permissionSelectorId' => 'edit-admin-'.$account['id'],
+                                    'selectedPermissions' => $account['admin_permissions'],
+                                ])
+                            </fieldset>
                             <div class="md:col-span-2"><button class="admin-btn-primary" type="submit">{{ __('admin.accounts.save') }}</button></div>
                         </form>
                     </details>
