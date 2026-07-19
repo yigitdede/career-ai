@@ -77,6 +77,7 @@ def test_interview_questions_and_scoring_are_ai_backed(client, monkeypatch):
     assert answer.json()["score"] == 82
     assert answer.json()["improvements"] == ["Etki metriği ekle"]
     assert len(client.get("/api/v1/career/interviews/current", headers=auth).json()["answers"]) == 1
+    assert prompts[0]["system_constraint"].startswith("[SISTEM KISITI]")
     assert "Türkçe" in " ".join(prompts[0]["rules"])
     assert "Mentör" in " ".join(prompts[1]["rules"])
 
@@ -104,6 +105,7 @@ def test_interview_uses_saved_panel_language_without_request_body(client, monkey
     response = client.post("/api/v1/career/interviews", headers=auth)
 
     assert response.status_code == 201
+    assert prompts[0]["system_constraint"].startswith("[SYSTEM CONSTRAINT]")
     assert "English" in " ".join(prompts[0]["rules"])
 
 

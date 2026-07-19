@@ -1,14 +1,14 @@
 """Add language column to career_interviews
 
-Revision ID: 20260719_08
-Revises: 20260717_07
+Revision ID: 20260719_09
+Revises: 20260719_08
 Create Date: 2026-07-19
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "20260719_08"
-down_revision = "20260717_07"
+revision = "20260719_09"
+down_revision = "20260719_08"
 branch_labels = None
 depends_on = None
 
