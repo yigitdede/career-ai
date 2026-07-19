@@ -1,6 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import event, select
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import hash_password
 from app.main import app
 from app.models.recruiting import Organization, OrganizationMembership
 from app.models.user import User
@@ -138,15 +140,27 @@ def test_company_admin_cannot_promote_member_to_owner(client):
         ])
         db.commit()
 
-    response = client.patch(
-        "/api/v1/company/members/member-viewer",
-        headers={
-            **_headers(client, "company-admin@example.com"),
-            "X-Organization-ID": organization["id"],
-        },
-        json={"role": "owner", "status": "active"},
-    )
+    locked_statements = []
+
+    def capture_for_update(execute_state):
+        if getattr(execute_state.statement, "_for_update_arg", None) is not None:
+            locked_statements.append(execute_state.statement)
+
+    event.listen(Session, "do_orm_execute", capture_for_update)
+    try:
+        response = client.patch(
+            "/api/v1/company/members/member-viewer",
+            headers={
+                **_headers(client, "company-admin@example.com"),
+                "X-Organization-ID": organization["id"],
+            },
+            json={"role": "owner", "status": "active"},
+        )
+    finally:
+        event.remove(Session, "do_orm_execute", capture_for_update)
+
     assert response.status_code == 403
+    assert locked_statements
 
 
 def test_candidate_email_cannot_receive_company_invitation(client):
@@ -162,3 +176,45 @@ def test_candidate_email_cannot_receive_company_invitation(client):
         json={"email": "candidate@example.com", "role": "owner"},
     )
     assert response.status_code == 409
+
+
+def test_invitation_cannot_be_consumed_by_an_existing_organization_member(client):
+    _register(client, "root@example.com")
+    _super_admin("root@example.com")
+    admin_headers = _headers(client, "root@example.com")
+    organization = _create_org(client, admin_headers)
+    invited = client.post(
+        f"/api/v1/admin/organizations/{organization['id']}/owner-invitations",
+        headers=admin_headers,
+        json={"email": "member@acme.example.com", "role": "owner"},
+    )
+    assert invited.status_code == 201
+
+    with next(app.dependency_overrides[get_db]()) as db:
+        user = User(
+            full_name="Existing Member",
+            email="member@acme.example.com",
+            hashed_password=hash_password(PASSWORD),
+            role="company",
+            is_admin=False,
+            admin_permissions=[],
+        )
+        db.add(user)
+        db.flush()
+        db.add(
+            OrganizationMembership(
+                id="existing-member",
+                organization_id=organization["id"],
+                user_id=user.id,
+                role="viewer",
+                status="active",
+            )
+        )
+        db.commit()
+
+    response = client.post(
+        f"/api/v1/company/invitations/{invited.json()['token']}/accept",
+        json={"full_name": "Existing Member", "password": PASSWORD},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"] == "User is already a member of this organization"

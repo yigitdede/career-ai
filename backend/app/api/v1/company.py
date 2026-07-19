@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -143,6 +144,11 @@ def invite_member(payload: CompanyInviteCreate, db: DB, context=Depends(_context
 @router.patch("/members/{membership_id}", response_model=CompanyMemberResponse)
 def update_member(membership_id: str, payload: CompanyMemberUpdate, db: DB, context=Depends(_context)) -> CompanyMemberResponse:
     current_user, organization, _ = _require_permission(context, "members.manage")
+    db.execute(
+        select(Organization.id)
+        .where(Organization.id == organization.id)
+        .with_for_update()
+    ).scalar_one()
     membership = db.scalar(select(OrganizationMembership).where(OrganizationMembership.id == membership_id, OrganizationMembership.organization_id == organization.id))
     if membership is None:
         raise HTTPException(status_code=404, detail="Company member not found")
@@ -206,15 +212,20 @@ def accept_invitation(token: str, payload: CompanyInviteAccept, db: DB):
     organization = db.get(Organization, invitation.organization_id)
     if organization is None or organization.status not in {"onboarding", "active"}:
         raise HTTPException(status_code=404, detail="Company invitation not found")
-    user = db.scalar(select(User).where(func.lower(User.email) == invitation.email))
-    if user is None:
-        user = User(full_name=" ".join(payload.full_name.split()), email=invitation.email, hashed_password=hash_password(payload.password), role="company", is_admin=False, admin_permissions=[])
-        db.add(user); db.flush()
-    elif user.role != "company" or not user.is_active or not verify_password(payload.password, user.hashed_password):
-        raise HTTPException(status_code=409, detail="Email belongs to another account or password is invalid")
-    existing = db.scalar(select(OrganizationMembership).where(OrganizationMembership.organization_id == invitation.organization_id, OrganizationMembership.user_id == user.id))
-    if existing is None:
+    try:
+        user = db.scalar(select(User).where(func.lower(User.email) == invitation.email))
+        if user is None:
+            user = User(full_name=" ".join(payload.full_name.split()), email=invitation.email, hashed_password=hash_password(payload.password), role="company", is_admin=False, admin_permissions=[])
+            db.add(user); db.flush()
+        elif user.role != "company" or not user.is_active or not verify_password(payload.password, user.hashed_password):
+            raise HTTPException(status_code=409, detail="Email belongs to another account or password is invalid")
+        existing = db.scalar(select(OrganizationMembership).where(OrganizationMembership.organization_id == invitation.organization_id, OrganizationMembership.user_id == user.id))
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="User is already a member of this organization")
         db.add(OrganizationMembership(id=str(uuid4()), organization_id=invitation.organization_id, user_id=user.id, role=invitation.role, status="active"))
-    invitation.accepted_at = now
-    db.commit()
+        invitation.accepted_at = now
+        db.commit()
+    except IntegrityError as exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Company invitation conflicts with an existing account") from exception
     return {"accepted": True}

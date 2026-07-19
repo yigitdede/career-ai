@@ -13,6 +13,8 @@ rsync -a --delete \
   --exclude '__pycache__' \
   --exclude '*.pyc' \
   --exclude '.phpunit.result.cache' \
+  --exclude '.playwright-cli' \
+  --exclude '.playwright-mcp' \
   --exclude 'node_modules' \
   --exclude 'frontend/node_modules' \
   --exclude 'frontend/vendor' \
