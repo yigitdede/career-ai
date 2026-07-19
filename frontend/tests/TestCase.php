@@ -12,6 +12,5 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
         Config::set('services.careertalent.api_url', 'http://localhost:8000');
         $this->withoutVite();
-        $this->withoutMiddleware();
     }
 }
