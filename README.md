@@ -99,29 +99,15 @@ YZTA bootcamp ve benzeri programlardan mezun olan veya mezun olmaya hazırlanan 
 | US-18 | Mentor review paketi seçip demo talep oluşturabilmeliyim | Could | 3 | Demo panel |
 | US-19 | Admin olarak öğrenci, cohort, readiness ve gelir modüllerini yönetebilmeliyim | Should | 2 | Kısmen (gerçek öğrenci/readiness; cohort ve gelir eksik) |
 
+**Backlog çalışma kuralı:** Sprint hedefi SM + PO tarafından tek cümleyle sabitlenir; işler **Must → Should → Could** sırasıyla, uzmanlık ve kabul kriterine göre atanır. Tamamlanmayan Should/Could maddeler sonraki sprint'e taşınır; taşınan Must maddelerin nedeni retrospektifte kaydedilir.
+
+Sprint board: [CareerTalent AI — Sprint 2 Board](https://github.com/users/busebatan/projects/1)
+
 Detaylı sprint görevleri: [Sprint 1](docs/sprintler/sprint-1-ilk-sprint.md) · [Sprint 2](docs/sprintler/sprint-2-ikinci-sprint.md) · [Sprint 3](docs/sprintler/sprint-3-son-sprint.md)
 
 ---
 
-## 2. Sprint Süreçleri ve Raporlar
-
-### Her Sprint Sonunda Beklentiler
-
-Her sprint kaydı; **Backlog Dağıtma Mantığı**, **Daily Scrum Notları**, **Sprint Board Updates**, **Ürün Durumu**, **Sprint Review** ve **Sprint Retrospective** başlıklarını içerir. Ana README denetim özetini, sprint dosyası ayrıntı ve kanıtları tutar.
-
-### Backlog Dağıtma Mantığı
-
-1. **Sprint hedefi** tek cümle ile sabitlenir (SM + PO).
-2. Backlog maddeleri **Must** önce, **Should** sonra, **Could** en son sprint'e atanır.
-3. Görevler **uzmanlığa** göre dağıtılır: Backend (Döne), Frontend (Buse/Bithanya), Veri/PO (Yiğit).
-4. Her görevde **kabul kriteri** ve **kanıt** (PR, test, URL) tanımlanır.
-5. Sprint sonunda tamamlanmayan **Should/Could** maddeler bir sonraki sprint'e taşınır; **Must** taşınırsa retro'da sebep yazılır.
-
-Sprint board: [GitHub Issues](https://github.com/busebatan/careertalent-ai/issues)
-
----
-
-### Sprint 0 — Takım Kurulumu (12 Haziran 2026)
+## Sprint 0 — Takım Kurulumu (12 Haziran 2026)
 
 | Alan | Özet |
 |------|------|
@@ -134,11 +120,11 @@ Detay: [sprint-0-takim-kurulumu.md](docs/sprintler/sprint-0-takim-kurulumu.md)
 
 ---
 
-### Sprint 1 — İlk Sprint (19 Haziran – 5 Temmuz 2026)
+## Sprint 1 — İlk Sprint (19 Haziran – 5 Temmuz 2026)
 
 **Sprint hedefi:** Öğrenci kayıt olup CV yükleyebilsin; backend parse işini kuyruğa alsın; tanıtım sitesi canlı görünsün.
 
-#### Daily Scrum Notları
+### Daily Scrum Notları
 
 | Tarih | Kim | Ne yapıldı? | Engel |
 |-------|-----|-------------|-------|
@@ -149,7 +135,7 @@ Detay: [sprint-0-takim-kurulumu.md](docs/sprintler/sprint-0-takim-kurulumu.md)
 | 29.06 | Yiğit | `data/roles` 5 meslek seed, career ladder servis testleri | — |
 | 05.07 | Tüm takım | Sprint kapanış; README ve sprint raporu güncellendi | Auth + tam marketing içeriği Sprint 1 hedefinde kaldı |
 
-#### Sprint Board Updates
+### Sprint Board Updates
 
 | Görev | Sorumlu | Durum | Not |
 |-------|---------|-------|-----|
@@ -163,7 +149,7 @@ Detay: [sprint-0-takim-kurulumu.md](docs/sprintler/sprint-0-takim-kurulumu.md)
 | `data/roles` seed (5 meslek) | Yiğit | Done | `bootcamp_roles.json` |
 | CV parse (pdf → Gemini) | Döne + Yiğit | Kısmen | `POST /api/v1/cv/analyze` senkron |
 
-#### Ürün Durumu (5 Temmuz 2026)
+### Ürün Durumu (5 Temmuz 2026)
 
 | Alan | Durum | Kanıt |
 |------|-------|-------|
@@ -176,7 +162,7 @@ Detay: [sprint-0-takim-kurulumu.md](docs/sprintler/sprint-0-takim-kurulumu.md)
 
 **Kritik boşluk:** UI iskeleti güçlü; zeka katmanı panelde hâlâ büyük ölçüde demo. Sonraki sıçrama: CV → gerçek profil → skorların kalıcı profile bağlanması.
 
-#### Sprint Review (5 Temmuz)
+### Sprint Review (5 Temmuz)
 
 **Gösterilebilen:**
 - Canlı tanıtım: https://careertalent.ygtlabs.ai/
@@ -190,7 +176,7 @@ Detay: [sprint-0-takim-kurulumu.md](docs/sprintler/sprint-0-takim-kurulumu.md)
 - PDF yükleme → Celery kuyruk → kalıcı profil
 - Fiyatlandırma, SSS, iletişim vb. placeholder sayfaların gerçek içeriği
 
-#### Sprint Retrospective (5 Temmuz)
+### Sprint Retrospective (5 Temmuz)
 
 | İyi gitti | İyileştirilecek | Aksiyon |
 |-----------|-----------------|---------|
@@ -214,26 +200,32 @@ Detay: [sprint-1-ilk-sprint.md](docs/sprintler/sprint-1-ilk-sprint.md)
 
 ---
 
-### Sprint 2 — İkinci Sprint (6 Temmuz – 19 Temmuz 2026) — Tamamlandı
+## Sprint 2 — İkinci Sprint (6 Temmuz – 19 Temmuz 2026) — Tamamlandı
 
 **Sprint hedefi:** Öğrenci hedef mesleğini seçsin; eksik yetenekler ve haftalık yol haritasını görsün; hazırlık yüzdesi panelde görünsün.
 
-#### Backlog Dağıtma Mantığı
+Bu Sprint 2 raporu; **Backlog Dağıtma Mantığı**, **Daily Scrum Notları**, **Sprint Board Updates**, **Ürün Durumu**, **Sprint Review** ve **Sprint Retrospective** başlıklarını doğrudan izler. README denetim özetini, [ayrıntılı Sprint 2 dosyası](docs/sprintler/sprint-2-ikinci-sprint.md) kararları ve kanıtları tutar.
+
+### Backlog Dağıtma Mantığı
 
 Sprint 1'den devreden auth ve CV analiz kuyruğu **Must** olarak önce kapatıldı. Ardından CV→kişiye özel rol→hedef→görev planı zinciri, kullanıcı dili, admin yetki ayrımı ve gerçek veri modülleri önceliklendirildi. Livewire zorunlu görülmedi; Blade mimarisi korundu. OpenAPI, dört marketing sayfası, cohort/gelir ve tam görev→skor otomasyonu Sprint 3'e taşındı.
 
-#### Daily Scrum Notları
+### Daily Scrum Notları
 
 6–19 Temmuz kayıtları; auth, CV/Celery, dinamik kariyer motoru, admin veri merkezi, drag-drop, TR/EN kalıcılığı, CV anonimleştirme, AI mülakat, PR #9–#11 ve final test/build kapanışını kapsıyor. Ayrıntı: [Sprint 2 Daily Scrum](docs/sprintler/sprint-2-ikinci-sprint.md#daily-scrum-notları).
 
-#### Sprint Board Updates
+### Sprint Board Updates
 
 - **Done:** Auth/session, CV upload ve geçmiş, dinamik career engine, hedef planı, locale kalıcılığı, AI mülakat, CV anonimleştirme, gerçek admin modülleri, kariyer veri merkezi, SSS/iletişim/bootcamp ve middleware/Alpine düzeltmesi.
 - **Sprint 3'e taşındı:** `docs/openapi.yaml`, fiyatlandırma/galeri/blog/hakkımızda, tam görev→skor otomasyonu, admin cohort/gelir, toplu scraper ve mentor demo fallback.
 - **PR kanıtı:** Sprint 2'de PR #2–#11 merge edildi; kapanışta **11 closed / 0 open PR**.
-- Farklı günlerden board ekran görüntüsü bulunmadığı için geçmiş görüntü üretilmedi; commit/PR zaman çizelgesi ve 19 Temmuz PR ekranı kullanıldı.
+- **Güncel board:** 19 Temmuz kapanışında GitHub Project üzerinde **10 Done / 6 Todo** kart doğrulandı. Kickoff ve orta nokta görüntüleri bulunmadığı için geçmiş ekran üretilmedi.
 
-#### Ürün Durumu (19 Temmuz kapanış)
+[Canlı GitHub Project board](https://github.com/users/busebatan/projects/1)
+
+![Sprint 2 güncel GitHub Project board — 19 Temmuz](docs/sprintler/screenshots/sprint-2/sprint-board-guncel-19-temmuz.png)
+
+### Ürün Durumu (19 Temmuz kapanış)
 
 | Alan | Durum |
 |------|-------|
@@ -246,19 +238,21 @@ Sprint 1'den devreden auth ve CV analiz kuyruğu **Must** olarak önce kapatıld
 
 19 Temmuz canlı ana sayfa, panel/admin login, yetkili gerçek admin dashboard/readiness/veri merkezi/hesap yönetimi ve PR akışı görselleri Sprint 2 raporuna eklendi. Admin kayıtlarındaki kişisel alanlar public görselde maskelendi. PR #9–#11 dahil 11 PR'ın tamamı `main` içinde doğrulandı ve canlıya deploy edildi; SSS, iletişim, özellikler, nasıl çalışır, bootcamp ve yeni görsel assetler HTTPS/browser readback ile doğrulandı.
 
-#### Sprint Review
+### Sprint Review
 
 Sprint hedefinin çekirdek akışı tamamlandı: CV analizi kişiye özel rol, gap, hedef ve haftalık plana dönüşüyor; panel dili ve admin yetki sınırı kalıcı hale geldi. Merge sonrası SSS testi ve bozuk `composer test` komutu düzeltildi. Statik OpenAPI, dört marketing sayfası, cohort/gelir ve tam skor otomasyonu yetişmedi; Sprint 3 backlog'una aktarıldı.
 
-#### Sprint Retrospective
+### Sprint Retrospective
 
-İki servisli Plan A mimarisi devam ediyor. Sprint 3 aksiyonları: ilk iki günde OpenAPI sözleşmesi, ilk haftada AI/DB session regresyon smoke'u ve kararsız backend testinin izolasyonu, orta noktaya kadar dört marketing sayfası, her board kontrol noktasında ekran görüntüsü.
+Gerçek CV→rol→plan akışının çalışması ekipte başarı ve motivasyon hissini güçlendirdi. Son günlerde test, deploy ve dokümantasyonun aynı anda kapanması baskı ve yorgunluk yarattı; PR üzerinden hızlı yardımlaşma güven verdi. İki servisli Plan A devam ediyor.
 
-#### Her Sprint Sonunda Beklentiler
+**Sprint 3 süreç aksiyonları:** (1) Buse, kickoff/orta nokta/kapanış board görüntülerini aynı gün rapora ekleyecek. (2) Takım, Daily sonunda kısa duygu/engel kontrolü yapacak; doküman ve kanıt işleri son güne bırakılmayacak.
+
+### Her Sprint Sonunda Beklentiler
 
 - [x] Backlog Dağıtma Mantığı
 - [x] Daily Scrum Notları
-- [x] Sprint Board Updates
+- [x] Sprint Board Updates ve güncel GitHub Project görseli
 - [x] Ürün Durumu ve final görselleri
 - [x] Sprint Review
 - [x] Sprint Retrospective ve sahipli Sprint 3 aksiyonları
@@ -268,7 +262,7 @@ Detay ve görsel kanıtlar: [sprint-2-ikinci-sprint.md](docs/sprintler/sprint-2-
 
 ---
 
-### Sprint 3 — Son Sprint (20 Temmuz – 2 Ağustos 2026) — Planlı
+## Sprint 3 — Son Sprint (20 Temmuz – 2 Ağustos 2026) — Planlı
 
 **Sprint hedefi:** Bağlamlı sohbet, mentör paneli, jüri demo senaryosu.
 
