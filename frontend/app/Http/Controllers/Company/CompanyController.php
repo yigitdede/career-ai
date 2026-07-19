@@ -91,9 +91,33 @@ class CompanyController extends Controller
     {
         return view($name, [
             ...$data,
+            'apiHealth' => ['ok' => true],
             'companyMembership' => $request->attributes->get('company.membership'),
             'companyMemberships' => $request->session()->get('company.memberships', []),
+            'companyNav' => $this->companyNav(),
             'companyUser' => $request->attributes->get('auth.user', []),
         ]);
+    }
+
+    /**
+     * @return list<array{label: string, items: list<array{route: string, label: string, icon: string}>}>
+     */
+    private function companyNav(): array
+    {
+        return [
+            [
+                'label' => __('company.nav.general'),
+                'items' => [
+                    ['route' => 'company.dashboard', 'label' => __('company.nav.dashboard'), 'icon' => 'dashboard'],
+                ],
+            ],
+            [
+                'label' => __('company.nav.organization'),
+                'items' => [
+                    ['route' => 'company.team', 'label' => __('company.nav.team'), 'icon' => 'admins'],
+                    ['route' => 'company.profile', 'label' => __('company.nav.profile'), 'icon' => 'profile'],
+                ],
+            ],
+        ];
     }
 }

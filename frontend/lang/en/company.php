@@ -1,7 +1,8 @@
 <?php
 
 return [
-    'nav' => ['general' => 'General', 'organization' => 'Organization Management', 'dashboard' => 'Company Overview', 'team' => 'Team & Permissions', 'profile' => 'Company Profile'],
+    'brand' => 'CareerTalent Company',
+    'nav' => ['general' => 'General', 'organization' => 'Organization Management', 'dashboard' => 'Company Overview', 'team' => 'Team & Permissions', 'profile' => 'Company Profile', 'open_menu' => 'Open menu', 'marketing_site' => 'Main site'],
     'header' => ['secure_context' => 'Organization context verified'],
     'organization' => ['active' => 'Active organization'],
     'roles' => ['owner' => 'Owner', 'admin' => 'Company Admin', 'recruiter' => 'Recruiter', 'hiring_manager' => 'Hiring Manager', 'viewer' => 'Viewer'],

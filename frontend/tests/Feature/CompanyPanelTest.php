@@ -65,7 +65,20 @@ class CompanyPanelTest extends TestCase
         ]);
         $session = ['company_auth.access_token' => 'company-token', 'company_auth.user' => $this->user()];
 
-        $this->withSession($session)->get('/company')->assertOk()->assertSee('Acme Teknoloji')->assertSee('2');
+        $this->withSession($session)->get('/company')
+            ->assertOk()
+            ->assertSee('Acme Teknoloji')
+            ->assertSee('2')
+            ->assertSee('data-workspace-shell="company"', false)
+            ->assertSee('id="company-sidebar"', false)
+            ->assertSee('workspace-header', false)
+            ->assertSee('data-lucide="bell"', false)
+            ->assertSee('data-lucide="languages"', false)
+            ->assertSee('data-lucide="layout-dashboard"', false)
+            ->assertDontSee('▦', false)
+            ->assertDontSee('♙', false)
+            ->assertDontSee('⚙', false)
+            ->assertDontSee('◐', false);
         $this->withSession($session)->get('/company/ekip')->assertOk()->assertSee('Acme Owner')->assertSee('Ekip ve Yetkiler');
         $this->withSession($session)->get('/company/profil')
             ->assertOk()
@@ -73,7 +86,7 @@ class CompanyPanelTest extends TestCase
             ->assertSee('action="'.route('company.logout').'"', false);
     }
 
-    public function test_company_panel_uses_its_own_teal_emerald_visual_identity(): void
+    public function test_company_panel_uses_shared_admin_shell_without_changing_its_visual_identity(): void
     {
         $css = file_get_contents(resource_path('css/app.css'));
         $views = implode("\n", array_map(
@@ -83,14 +96,19 @@ class CompanyPanelTest extends TestCase
                 resource_path('views/company/dashboard.blade.php'),
                 resource_path('views/company/team.blade.php'),
                 resource_path('views/company/profile.blade.php'),
+                resource_path('views/workspace/partials/header.blade.php'),
+                resource_path('views/workspace/partials/sidebar-nav.blade.php'),
             ],
         ));
 
         $this->assertStringContainsString('--company-accent: #0f766e', $css);
+        $this->assertStringContainsString('--company-accent-hover: #115e59', $css);
         $this->assertStringContainsString('--company-brand: #10b981', $css);
         $this->assertStringContainsString('--company-accent-ink-dark: #5eead4', $css);
         $this->assertStringContainsString('--admin-accent: #ffbd72', $css);
         $this->assertStringContainsString('company-shell', $views);
+        $this->assertStringContainsString("@include('workspace.partials.header'", $views);
+        $this->assertStringContainsString("@include('workspace.partials.sidebar-nav'", $views);
         $this->assertStringContainsString('company-btn-primary', $views);
         $this->assertStringContainsString('panel-nav-link-active', $views);
         $this->assertStringNotContainsString('admin-shell', $views);
@@ -192,8 +210,8 @@ class CompanyPanelTest extends TestCase
             ->assertSessionHas('auth.access_token', 'admin-token')
             ->assertSessionHas('company_auth.access_token', 'company-token');
 
-        $this->get('/company')->assertOk();
-        $this->get('/admin')->assertOk();
+        $this->get('/company')->assertOk()->assertSee('data-workspace-shell="company"', false);
+        $this->get('/admin')->assertOk()->assertSee('data-workspace-shell="admin"', false);
 
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/v1/company/dashboard')
             && $request->hasHeader('Authorization', 'Bearer company-token'));

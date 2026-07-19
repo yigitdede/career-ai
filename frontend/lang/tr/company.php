@@ -1,7 +1,8 @@
 <?php
 
 return [
-    'nav' => ['general' => 'Genel', 'organization' => 'Kurum Yönetimi', 'dashboard' => 'Kurum Özeti', 'team' => 'Ekip ve Yetkiler', 'profile' => 'Kurum Profili'],
+    'brand' => 'CareerTalent Company',
+    'nav' => ['general' => 'Genel', 'organization' => 'Kurum Yönetimi', 'dashboard' => 'Kurum Özeti', 'team' => 'Ekip ve Yetkiler', 'profile' => 'Kurum Profili', 'open_menu' => 'Menüyü aç', 'marketing_site' => 'Ana site'],
     'header' => ['secure_context' => 'Kurum bağlamı doğrulandı'],
     'organization' => ['active' => 'Aktif kurum'],
     'roles' => ['owner' => 'Kurum Sahibi', 'admin' => 'Kurum Yöneticisi', 'recruiter' => 'İşe Alım Uzmanı', 'hiring_manager' => 'Teknik Yönetici', 'viewer' => 'Görüntüleyici'],

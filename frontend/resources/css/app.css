@@ -190,6 +190,15 @@ html:not(.dark) { color-scheme: light; }
         --admin-accent-border: rgb(255 189 114 / 0.28);
         --admin-accent-border-soft: rgb(255 189 114 / 0.18);
         --admin-accent-surface: rgb(255 189 114 / 0.08);
+        --workspace-accent: var(--admin-accent);
+        --workspace-accent-ink: var(--admin-accent-ink);
+        --workspace-accent-ink-dark: var(--admin-accent-ink-dark);
+        --workspace-accent-soft: var(--admin-accent-soft);
+        --workspace-accent-soft-strong: var(--admin-accent-soft-strong);
+        --workspace-accent-border-soft: var(--admin-accent-border-soft);
+        --workspace-accent-contrast: #10172b;
+        --workspace-lang-ink: #0f172a;
+        --workspace-lang-ink-dark: #fff;
     }
 
     .admin-shell .panel-sidebar {
@@ -350,21 +359,33 @@ html:not(.dark) { color-scheme: light; }
         --company-accent-border: rgb(13 148 136 / 0.28);
         --company-accent-border-soft: rgb(13 148 136 / 0.18);
         --company-focus: rgb(20 184 166 / 0.45);
+        --workspace-accent: var(--company-accent);
+        --workspace-accent-ink: var(--company-accent-ink);
+        --workspace-accent-ink-dark: var(--company-accent-ink-dark);
+        --workspace-accent-soft: var(--company-accent-soft);
+        --workspace-accent-soft-strong: var(--company-accent-soft-strong);
+        --workspace-accent-border-soft: var(--company-accent-border-soft);
+        --workspace-accent-contrast: #fff;
+        --workspace-lang-ink: var(--company-accent-ink);
+        --workspace-lang-ink-dark: var(--company-accent-ink-dark);
     }
 
     .company-shell .panel-sidebar {
         border-right-color: var(--company-accent-border);
     }
 
-    .company-shell .panel-header {
-        border-bottom: 1px solid var(--company-accent-border-soft);
+    .company-shell .company-sidebar {
+        @apply fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transition-transform md:relative md:z-auto md:w-auto md:translate-x-0;
+    }
+
+    .company-shell .company-sidebar.company-sidebar-open {
+        @apply flex translate-x-0;
     }
 
     .company-shell .panel-nav-link-active {
         background: var(--company-accent-soft);
         color: var(--company-accent-ink);
-        box-shadow: inset 3px 0 0 var(--company-brand);
-        font-weight: 600;
+        font-weight: 500;
     }
 
     :is(.dark) .company-shell .panel-nav-link-active {
@@ -373,19 +394,7 @@ html:not(.dark) { color-scheme: light; }
     }
 
     .company-shell .company-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
         color: var(--company-accent-ink);
-    }
-
-    .company-shell .company-brand::before {
-        width: 0.5rem;
-        height: 0.5rem;
-        border-radius: 9999px;
-        background: var(--company-brand);
-        content: '';
-        box-shadow: 0 0 0 4px var(--company-accent-soft);
     }
 
     :is(.dark) .company-shell .company-brand,
@@ -454,6 +463,52 @@ html:not(.dark) { color-scheme: light; }
         background: var(--company-accent);
         color: #fff;
         font-weight: 600;
+    }
+
+    .company-shell .company-sidebar-footer {
+        border-top: 1px solid var(--company-accent-border-soft);
+    }
+
+    .workspace-header {
+        border-bottom: 1px solid var(--workspace-accent-border-soft);
+    }
+
+    .workspace-accent-dot {
+        background: var(--workspace-accent);
+    }
+
+    .workspace-accent-pill {
+        background: var(--workspace-accent);
+        color: var(--workspace-accent-contrast);
+    }
+
+    .workspace-accent-link {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--workspace-accent-ink);
+    }
+
+    .workspace-accent-link:hover {
+        text-decoration: underline;
+    }
+
+    :is(.dark) .workspace-accent-link {
+        color: var(--workspace-accent-ink-dark);
+    }
+
+    .workspace-lang-active {
+        background: var(--workspace-accent-soft);
+        font-weight: 600;
+        color: var(--workspace-lang-ink);
+    }
+
+    :is(.dark) .workspace-lang-active {
+        background: var(--workspace-accent-soft-strong);
+        color: var(--workspace-lang-ink-dark);
+    }
+
+    .workspace-accent-check {
+        color: var(--workspace-accent);
     }
 
     .company-shell :is(.company-btn-primary, .company-btn-secondary, .company-icon-button, .company-lang-link, .company-membership-option):focus-visible,
