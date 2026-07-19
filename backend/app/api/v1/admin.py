@@ -2,9 +2,11 @@
 
 from collections.abc import Iterable
 from typing import Annotated, Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -21,6 +23,7 @@ from app.core.security import (
 )
 from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, Evidence, JobOpportunity
 from app.models.engagement import CareerInterview, CvDocument, JobApplication
+from app.models.recruiting import Organization, OrganizationMembership
 from app.models.user import User
 from app.schemas.admin import (
     AdminAccountCreate,
@@ -29,6 +32,10 @@ from app.schemas.admin import (
     AdminAccountUpdate,
     AdminDashboardResponse,
     AdminModuleResponse,
+    AdminOrganizationCreate,
+    AdminOrganizationResponse,
+    AdminOrganizationsResponse,
+    AdminOrganizationUpdate,
     AdminProfileResponse,
     AdminProfileUpdate,
     AdminTableRow,
@@ -47,6 +54,35 @@ MODULE_PERMISSIONS = {
     "applications": "applications.view",
     "interviews": "interviews.view",
 }
+
+
+def _organization_response(db: Session, organization: Organization) -> AdminOrganizationResponse:
+    members_count = db.scalar(
+        select(func.count())
+        .select_from(OrganizationMembership)
+        .where(OrganizationMembership.organization_id == organization.id)
+    ) or 0
+    return AdminOrganizationResponse(
+        id=organization.id,
+        name=organization.name,
+        slug=organization.slug,
+        organization_type=organization.organization_type,
+        size_band=organization.size_band,
+        status=organization.status,
+        plan_code=organization.plan_code,
+        billing_email=organization.billing_email,
+        website=organization.website,
+        members_count=members_count,
+        created_at=organization.created_at.isoformat(),
+        updated_at=organization.updated_at.isoformat(),
+    )
+
+
+def _organization_or_404(db: Session, organization_id: str) -> Organization:
+    organization = db.get(Organization, organization_id)
+    if organization is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return organization
 
 
 def _permissions(values: list[str]) -> list[str]:
@@ -145,6 +181,85 @@ def update_account(user_id: int, payload: AdminAccountUpdate, db: DB, _super_adm
     db.commit()
     db.refresh(user)
     return _admin_account(user)
+
+
+@router.get("/organizations", response_model=AdminOrganizationsResponse)
+def organizations(
+    db: DB,
+    _current_user: User = Depends(require_admin_permission("organizations.manage")),
+) -> AdminOrganizationsResponse:
+    rows = db.scalars(
+        select(Organization).order_by(Organization.created_at.desc(), Organization.name.asc())
+    ).all()
+    return AdminOrganizationsResponse(
+        total=len(rows),
+        organizations=[_organization_response(db, row) for row in rows],
+    )
+
+
+@router.post(
+    "/organizations",
+    response_model=AdminOrganizationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_organization(
+    payload: AdminOrganizationCreate,
+    db: DB,
+    _current_user: User = Depends(require_admin_permission("organizations.manage")),
+) -> AdminOrganizationResponse:
+    if db.scalar(select(Organization.id).where(Organization.slug == payload.slug)):
+        raise HTTPException(status_code=409, detail="Organization slug already exists")
+    organization = Organization(
+        id=str(uuid4()),
+        name=payload.name,
+        slug=payload.slug,
+        organization_type=payload.organization_type,
+        size_band=payload.size_band,
+        status=payload.status,
+        plan_code=payload.plan_code,
+        billing_email=str(payload.billing_email).lower(),
+        website=str(payload.website) if payload.website is not None else None,
+        settings={},
+    )
+    db.add(organization)
+    try:
+        db.commit()
+    except IntegrityError as exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Organization slug already exists") from exception
+    db.refresh(organization)
+    return _organization_response(db, organization)
+
+
+@router.patch("/organizations/{organization_id}", response_model=AdminOrganizationResponse)
+def update_organization(
+    organization_id: str,
+    payload: AdminOrganizationUpdate,
+    db: DB,
+    _current_user: User = Depends(require_admin_permission("organizations.manage")),
+) -> AdminOrganizationResponse:
+    organization = _organization_or_404(db, organization_id)
+    changes = payload.model_dump(exclude_unset=True)
+    if "slug" in changes and changes["slug"] != organization.slug:
+        if db.scalar(
+            select(Organization.id).where(
+                Organization.slug == changes["slug"], Organization.id != organization.id
+            )
+        ):
+            raise HTTPException(status_code=409, detail="Organization slug already exists")
+    if "billing_email" in changes and changes["billing_email"] is not None:
+        changes["billing_email"] = str(changes["billing_email"]).lower()
+    if "website" in changes and changes["website"] is not None:
+        changes["website"] = str(changes["website"])
+    for key, value in changes.items():
+        setattr(organization, key, value)
+    try:
+        db.commit()
+    except IntegrityError as exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Organization slug already exists") from exception
+    db.refresh(organization)
+    return _organization_response(db, organization)
 
 
 @router.get("/dashboard", response_model=AdminDashboardResponse)

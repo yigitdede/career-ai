@@ -10,6 +10,7 @@ class EnsureApiAdmin
 {
     private const ROUTE_PERMISSIONS = [
         'admin.dashboard' => 'dashboard.view',
+        'admin.organizations*' => 'organizations.manage',
         'admin.career-data*' => 'career_data.manage',
         'admin.students' => 'students.view',
         'admin.readiness' => 'readiness.view',

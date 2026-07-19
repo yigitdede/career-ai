@@ -107,6 +107,23 @@ class CareerTalentApiClient
         return $this->patchJson('/api/v1/admin/accounts/'.$userId, $payload, 15);
     }
 
+    public function adminOrganizations(): array
+    {
+        return $this->getJson('/api/v1/admin/organizations', 10);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createAdminOrganization(array $payload): array
+    {
+        return $this->postJson('/api/v1/admin/organizations', $payload, 15);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateAdminOrganization(string $organizationId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/admin/organizations/'.rawurlencode($organizationId), $payload, 15);
+    }
+
     /**
      * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
      */

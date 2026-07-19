@@ -1,6 +1,30 @@
 """Yalnız yönetici yüzeyinin ihtiyaç duyduğu, sunumdan bağımsız gerçek veri sözleşmeleri."""
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+import re
+from typing import Literal
+
+from pydantic import AnyHttpUrl, BaseModel, EmailStr, Field, field_validator, model_validator
+
+
+OrganizationType = Literal["employer", "agency"]
+OrganizationSizeBand = Literal["smb", "mid_market", "enterprise"]
+OrganizationStatus = Literal["onboarding", "active", "suspended", "closed"]
+OrganizationPlan = Literal["pilot", "starter", "growth", "agency", "enterprise"]
+
+
+def _normalized_name(value: str) -> str:
+    return " ".join(value.split())
+
+
+def _normalized_slug(value: str) -> str:
+    normalized = value.strip().lower()
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", normalized):
+        raise ValueError("Slug must contain lowercase ASCII letters, numbers, and hyphens only")
+    return normalized
+
+
+def _blank_to_none(value):
+    return None if isinstance(value, str) and not value.strip() else value
 
 
 class AdminMetric(BaseModel):
@@ -85,3 +109,83 @@ class AdminAccountResponse(AdminProfileResponse):
 class AdminAccountsResponse(BaseModel):
     permission_keys: list[str]
     accounts: list[AdminAccountResponse]
+
+
+class AdminOrganizationCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    slug: str = Field(min_length=2, max_length=100)
+    organization_type: OrganizationType
+    size_band: OrganizationSizeBand
+    status: OrganizationStatus = "onboarding"
+    plan_code: OrganizationPlan = "pilot"
+    billing_email: EmailStr
+    website: AnyHttpUrl | None = None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        return _normalized_name(value)
+
+    @field_validator("slug")
+    @classmethod
+    def normalize_slug(cls, value: str) -> str:
+        return _normalized_slug(value)
+
+    @field_validator("website", mode="before")
+    @classmethod
+    def normalize_optional_website(cls, value):
+        return _blank_to_none(value)
+
+
+class AdminOrganizationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    slug: str | None = Field(default=None, min_length=2, max_length=100)
+    organization_type: OrganizationType | None = None
+    size_band: OrganizationSizeBand | None = None
+    status: OrganizationStatus | None = None
+    plan_code: OrganizationPlan | None = None
+    billing_email: EmailStr | None = None
+    website: AnyHttpUrl | None = None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str | None) -> str | None:
+        return _normalized_name(value) if value is not None else None
+
+    @field_validator("slug")
+    @classmethod
+    def normalize_slug(cls, value: str | None) -> str | None:
+        return _normalized_slug(value) if value is not None else None
+
+    @field_validator("website", mode="before")
+    @classmethod
+    def normalize_optional_website(cls, value):
+        return _blank_to_none(value)
+
+    @model_validator(mode="after")
+    def reject_null_for_required_fields(self):
+        nullable = {"website"}
+        for field in self.model_fields_set - nullable:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
+
+
+class AdminOrganizationResponse(BaseModel):
+    id: str
+    name: str
+    slug: str
+    organization_type: OrganizationType
+    size_band: OrganizationSizeBand
+    status: OrganizationStatus
+    plan_code: OrganizationPlan
+    billing_email: EmailStr
+    website: str | None
+    members_count: int = Field(ge=0)
+    created_at: str
+    updated_at: str
+
+
+class AdminOrganizationsResponse(BaseModel):
+    total: int = Field(ge=0)
+    organizations: list[AdminOrganizationResponse]

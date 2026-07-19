@@ -232,7 +232,29 @@ class AuthFlowTest extends TestCase
 
         $this->withSession(['auth.access_token' => 'admin-token'])->get('/admin/ogrenciler')->assertOk();
         $this->withSession(['auth.access_token' => 'admin-token'])->get('/admin/mulakatlar')->assertForbidden();
+        $this->withSession(['auth.access_token' => 'admin-token'])->get('/admin/kurumlar')->assertForbidden();
         $this->withSession(['auth.access_token' => 'admin-token'])->get('/admin/hesaplar')->assertForbidden();
+    }
+
+    public function test_scoped_admin_with_organization_permission_can_open_tenant_management(): void
+    {
+        $admin = array_merge($this->user(true), [
+            'role' => 'admin',
+            'admin_permissions' => ['dashboard.view', 'organizations.manage'],
+            'must_change_password' => false,
+        ]);
+        Http::fake([
+            '*/api/v1/auth/me' => Http::response($admin),
+            '*/api/v1/admin/organizations' => Http::response(['total' => 0, 'organizations' => []]),
+            '*/health' => Http::response(['status' => 'ok']),
+        ]);
+
+        $this->withSession(['auth.access_token' => 'admin-token'])
+            ->get('/admin/kurumlar')
+            ->assertOk();
+        $this->withSession(['auth.access_token' => 'admin-token'])
+            ->get('/admin/ogrenciler')
+            ->assertForbidden();
     }
 
     public function test_admin_login_ignores_a_panel_intended_url(): void

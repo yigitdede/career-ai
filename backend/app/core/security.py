@@ -14,6 +14,7 @@ from app.core.config import settings
 
 ADMIN_PERMISSION_KEYS = (
     "dashboard.view",
+    "organizations.manage",
     "career_data.manage",
     "students.view",
     "readiness.view",

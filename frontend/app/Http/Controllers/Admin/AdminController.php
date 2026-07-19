@@ -11,7 +11,7 @@ use Illuminate\View\View;
 class AdminController extends Controller
 {
     private const PERMISSION_KEYS = [
-        'dashboard.view', 'career_data.manage', 'students.view', 'readiness.view',
+        'dashboard.view', 'organizations.manage', 'career_data.manage', 'students.view', 'readiness.view',
         'skill_passport.view', 'job_radar.view', 'applications.view', 'interviews.view',
     ];
 
@@ -132,6 +132,39 @@ class AdminController extends Controller
         return $response['ok']
             ? redirect()->route('admin.accounts')->with('status', __('admin.accounts.updated'))
             : back()->withErrors(['accounts' => $response['error']]);
+    }
+
+    public function organizations(CareerTalentApiClient $api): View
+    {
+        $response = $api->adminOrganizations();
+        $body = $response['ok'] && is_array($response['body']) ? $response['body'] : [];
+
+        return $this->adminView('admin.organizations', [
+            'organizations' => $body['organizations'] ?? [],
+            'organizationsTotal' => $body['total'] ?? 0,
+            'adminError' => $response['ok'] ? null : $this->apiError($response['error']),
+        ], $api);
+    }
+
+    public function storeOrganization(Request $request, CareerTalentApiClient $api): RedirectResponse
+    {
+        $response = $api->createAdminOrganization($this->organizationPayload($request));
+
+        return $response['ok']
+            ? redirect()->route('admin.organizations')->with('status', __('admin.organizations.created'))
+            : back()->withInput()->withErrors(['organizations' => $response['error']]);
+    }
+
+    public function updateOrganization(
+        Request $request,
+        CareerTalentApiClient $api,
+        string $organization,
+    ): RedirectResponse {
+        $response = $api->updateAdminOrganization($organization, $this->organizationPayload($request));
+
+        return $response['ok']
+            ? redirect()->route('admin.organizations')->with('status', __('admin.organizations.updated'))
+            : back()->withErrors(['organizations' => $response['error']]);
     }
 
     public function students(CareerTalentApiClient $api) { return $this->page('students', $api); }
@@ -276,6 +309,9 @@ class AdminController extends Controller
                 $item('admin.dashboard', __('admin.nav.dashboard'), 'dashboard', 'dashboard.view'),
                 $super ? ['route' => 'admin.accounts', 'label' => __('admin.nav.accounts'), 'icon' => 'admins'] : null,
             ])],
+            ['label' => __('admin.nav_groups.organizations'), 'items' => array_filter([
+                $item('admin.organizations', __('admin.nav.organizations'), 'organizations', 'organizations.manage'),
+            ])],
             ['label' => __('admin.nav_groups.data'), 'items' => array_filter([
                 $item('admin.career-data', __('career-data.title'), 'radar', 'career_data.manage'),
             ])],
@@ -299,6 +335,23 @@ class AdminController extends Controller
         return $error
             ? __('admin.errors.api_unavailable', ['error' => $error])
             : __('admin.errors.api_unavailable_generic');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function organizationPayload(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:160'],
+            'slug' => ['required', 'string', 'min:2', 'max:100', 'regex:/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/'],
+            'organization_type' => ['required', 'in:employer,agency'],
+            'size_band' => ['required', 'in:smb,mid_market,enterprise'],
+            'status' => ['required', 'in:onboarding,active,suspended,closed'],
+            'plan_code' => ['required', 'in:pilot,starter,growth,agency,enterprise'],
+            'billing_email' => ['required', 'email', 'max:255'],
+            'website' => ['nullable', 'url:http,https', 'max:2048'],
+        ]);
     }
 
     private function assertCareerDataResource(string $resource): void

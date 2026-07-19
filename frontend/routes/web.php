@@ -58,6 +58,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth.api', 'auth.api.admin'
     Route::get('/hesaplar', [AdminController::class, 'accounts'])->name('accounts');
     Route::post('/hesaplar', [AdminController::class, 'storeAccount'])->name('accounts.store');
     Route::patch('/hesaplar/{user}', [AdminController::class, 'updateAccount'])->name('accounts.update');
+    Route::get('/kurumlar', [AdminController::class, 'organizations'])->name('organizations');
+    Route::post('/kurumlar', [AdminController::class, 'storeOrganization'])->name('organizations.store');
+    Route::patch('/kurumlar/{organization}', [AdminController::class, 'updateOrganization'])->name('organizations.update');
     Route::get('/kariyer-veri-merkezi', [AdminController::class, 'careerData'])->name('career-data');
     Route::post('/kariyer-veri-merkezi/{resource}', [AdminController::class, 'storeCareerData'])->name('career-data.store');
     Route::put('/kariyer-veri-merkezi/{resource}/{record}', [AdminController::class, 'updateCareerData'])->name('career-data.update');
