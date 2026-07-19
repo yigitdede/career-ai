@@ -354,7 +354,8 @@ docker compose up
 
 - [Bootcamp Takvimi](docs/bootcamp-takvimi.md)
 - [Sprint Raporları](docs/sprintler/README.md)
-- [Ürün Değeri v001](docs/urun/2026-06-29-v001-urun-degeri.md)
+- [B2B Teknik İşe Alım Planı v004](docs/urun/2026-07-19-v004-b2b-teknik-ise-alim-plani.md)
+- [Ürün Değeri Sürüm İndeksi](docs/urun/README.md)
 - [Teknik Mimari](docs/teknik-mimari.md)
 
 ### Eski Stack

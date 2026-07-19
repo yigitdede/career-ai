@@ -18,6 +18,7 @@
 | v001 | 2026-06-29 | [2026-06-29-v001-urun-degeri.md](2026-06-29-v001-urun-degeri.md) | İlk sürüm: kariyer merdiveni, SWOT, ChatGPT farkı, eğitim yönlendirme (kurs yok) |
 | v002 | 2026-06-29 | [2026-06-29-v002-ogrenci-yolculugu-swot-gelir.md](2026-06-29-v002-ogrenci-yolculugu-swot-gelir.md) | CV sonrası yolculuk, kod durumu tablosu, SWOT, 7 moat, 6 gelir kapısı |
 | v003 | 2026-06-29 | [2026-06-29-v003-juri-readiness-yzta-paket.md](2026-06-29-v003-juri-readiness-yzta-paket.md) | 10 dk jüri demosu, readiness algoritması taslağı, YZTA B2B fiyat paketleri |
+| v004 | 2026-07-19 | [2026-07-19-v004-b2b-teknik-ise-alim-plani.md](2026-07-19-v004-b2b-teknik-ise-alim-plani.md) | B2B teknik işe alım konumu, tenant/panel sınırı, gelir modeli ve 90 günlük pilot |
 
 ## Yeni sürüm oluşturma
 
