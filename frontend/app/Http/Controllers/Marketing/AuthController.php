@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Marketing;
 
 use App\Http\Controllers\Controller;
 use App\Services\CareerTalentApiClient;
+use App\Support\PortalAuthSession;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -49,7 +50,7 @@ class AuthController extends Controller
         }
         $me = $api->me($result['body']['access_token']);
         if (! $me['ok'] || ($me['body']['role'] ?? null) !== 'company' || ($me['body']['is_admin'] ?? false) === true) {
-            $request->session()->forget('auth');
+            $request->session()->forget(PortalAuthSession::COMPANY);
 
             return back()->withInput($request->only('email'))->withErrors(['email' => __('marketing.auth.company_required')]);
         }
@@ -58,11 +59,14 @@ class AuthController extends Controller
             ? $context['body']['memberships']
             : [];
         if ($memberships === []) {
-            $request->session()->forget('auth');
+            $request->session()->forget(PortalAuthSession::COMPANY);
 
             return back()->withInput($request->only('email'))->withErrors(['email' => __('marketing.auth.company_membership_required')]);
         }
-        $this->startSession($request, $result['body']['access_token'], $me['body']);
+        if (($request->session()->get('auth.user.role') ?? null) === 'company') {
+            $request->session()->forget(PortalAuthSession::DEFAULT);
+        }
+        $this->startSession($request, $result['body']['access_token'], $me['body'], PortalAuthSession::COMPANY);
         $request->session()->put('company.memberships', $memberships);
         $request->session()->put('company.organization_id', $memberships[0]['organization_id']);
 
@@ -178,16 +182,26 @@ class AuthController extends Controller
 
     public function logout(Request $request): RedirectResponse
     {
-        $request->session()->invalidate();
+        $request->session()->forget(PortalAuthSession::DEFAULT);
+        $request->session()->regenerate();
         $request->session()->regenerateToken();
 
         return redirect()->route('home');
     }
 
-    private function startSession(Request $request, string $accessToken, array $user): void
+    public function logoutCompany(Request $request): RedirectResponse
+    {
+        $request->session()->forget([PortalAuthSession::COMPANY, 'company']);
+        $request->session()->regenerate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('company.login');
+    }
+
+    private function startSession(Request $request, string $accessToken, array $user, string $sessionKey = PortalAuthSession::DEFAULT): void
     {
         $request->session()->regenerate();
-        $request->session()->put('auth', [
+        $request->session()->put($sessionKey, [
             'access_token' => $accessToken,
             'user' => $user,
         ]);

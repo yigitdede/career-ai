@@ -36,7 +36,7 @@
             </nav>
             <div class="mt-auto border-t border-slate-200 pt-4 dark:border-slate-800">
                 <div class="mb-3 px-3"><p class="truncate text-sm font-semibold">{{ $companyUser['full_name'] }}</p><p class="truncate text-xs text-slate-500">{{ $companyUser['email'] }}</p></div>
-                <form method="post" action="{{ route('logout') }}">@csrf<button class="w-full rounded-lg px-3 py-2 text-left text-sm text-red-500">{{ __('panel.nav.logout') }}</button></form>
+                <form method="post" action="{{ route('company.logout') }}">@csrf<button class="w-full rounded-lg px-3 py-2 text-left text-sm text-red-500">{{ __('panel.nav.logout') }}</button></form>
             </div>
         </div>
     </aside>

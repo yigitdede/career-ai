@@ -14,12 +14,23 @@ class EnsureApiCompany
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->attributes->get('auth.user', []);
-        abort_unless(($user['role'] ?? null) === 'company' && ($user['is_admin'] ?? false) === false, 403);
+        if (($user['role'] ?? null) !== 'company' || ($user['is_admin'] ?? false) === true) {
+            $request->session()->forget(['company_auth', 'company']);
+
+            return redirect()->route('company.login')->withErrors([
+                'email' => __('marketing.auth.company_required'),
+            ]);
+        }
 
         $context = $this->api->companyContext();
-        abort_unless($context['ok'], 403);
         $memberships = is_array($context['body']['memberships'] ?? null) ? $context['body']['memberships'] : [];
-        abort_if($memberships === [], 403, 'Aktif kurum üyeliği bulunamadı.');
+        if (! $context['ok'] || $memberships === []) {
+            $request->session()->forget(['company_auth', 'company']);
+
+            return redirect()->route('company.login')->withErrors([
+                'email' => __('marketing.auth.company_membership_required'),
+            ]);
+        }
 
         $activeId = (string) $request->session()->get('company.organization_id', '');
         $active = collect($memberships)->firstWhere('organization_id', $activeId) ?? $memberships[0];

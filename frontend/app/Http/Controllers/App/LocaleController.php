@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Services\CareerTalentApiClient;
+use App\Support\PortalAuthSession;
 use Illuminate\Http\RedirectResponse;
 
 class LocaleController extends PanelController
@@ -21,9 +22,10 @@ class LocaleController extends PanelController
             return redirect()->back()->with('panel_error', __('panel.header.language_update_failed'));
         }
 
+        $sessionKey = PortalAuthSession::keyFor(request());
         session([
             'panel_locale' => $locale,
-            'auth.user.preferred_locale' => $locale,
+            $sessionKey.'.user.preferred_locale' => $locale,
         ]);
 
         return redirect()->back();

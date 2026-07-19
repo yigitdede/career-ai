@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\PortalAuthSession;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\UploadedFile;
@@ -658,9 +659,9 @@ class CareerTalentApiClient
     private function request(int $timeout, array $headers = []): PendingRequest
     {
         $request = Http::timeout($timeout)->withHeaders($headers);
-        $token = session('auth.access_token');
+        $token = PortalAuthSession::token(request());
 
-        return is_string($token) && $token !== ''
+        return $token !== null
             ? $request->withToken($token)
             : $request;
     }

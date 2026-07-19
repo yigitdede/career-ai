@@ -46,6 +46,7 @@ Route::middleware('marketing.locale')->group(function () {
     Route::post('/admin/login', [AuthController::class, 'authenticateAdmin'])->name('admin.login.submit');
     Route::get('/company/login', [AuthController::class, 'companyLogin'])->name('company.login');
     Route::post('/company/login', [AuthController::class, 'authenticateCompany'])->name('company.login.submit');
+    Route::post('/company/cikis', [AuthController::class, 'logoutCompany'])->name('company.logout');
     Route::get('/company/davet/{token}', [AuthController::class, 'companyInvitation'])->name('company.invitation');
     Route::post('/company/davet/{token}', [AuthController::class, 'acceptCompanyInvitation'])->name('company.invitation.accept');
     Route::post('/cikis', [AuthController::class, 'logout'])->name('logout');

@@ -282,10 +282,12 @@ class AuthFlowTest extends TestCase
         $response = $this->withSession([
             'auth.access_token' => 'jwt-token',
             'auth.user' => $this->user(),
+            'company_auth.access_token' => 'company-token',
         ])->post('/cikis');
 
         $response->assertRedirect('/');
         $response->assertSessionMissing('auth.access_token');
         $response->assertSessionMissing('auth.user');
+        $response->assertSessionHas('company_auth.access_token', 'company-token');
     }
 }
