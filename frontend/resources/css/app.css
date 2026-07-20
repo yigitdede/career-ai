@@ -190,6 +190,15 @@ html:not(.dark) { color-scheme: light; }
         --admin-accent-border: rgb(255 189 114 / 0.28);
         --admin-accent-border-soft: rgb(255 189 114 / 0.18);
         --admin-accent-surface: rgb(255 189 114 / 0.08);
+        --workspace-accent: var(--admin-accent);
+        --workspace-accent-ink: var(--admin-accent-ink);
+        --workspace-accent-ink-dark: var(--admin-accent-ink-dark);
+        --workspace-accent-soft: var(--admin-accent-soft);
+        --workspace-accent-soft-strong: var(--admin-accent-soft-strong);
+        --workspace-accent-border-soft: var(--admin-accent-border-soft);
+        --workspace-accent-contrast: #10172b;
+        --workspace-lang-ink: #0f172a;
+        --workspace-lang-ink-dark: #fff;
     }
 
     .admin-shell .panel-sidebar {
@@ -337,6 +346,314 @@ html:not(.dark) { color-scheme: light; }
 
     .admin-shell .admin-sidebar-footer {
         border-top: 1px solid var(--admin-accent-border-soft);
+    }
+
+    .admin-shell .admin-data-table {
+        @apply w-full min-w-[720px] border-collapse text-left text-sm;
+    }
+
+    .admin-shell .admin-data-table thead th {
+        @apply border-b border-slate-200 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400;
+    }
+
+    .admin-shell .admin-data-table tbody td {
+        @apply border-b border-slate-100 px-4 py-3 align-middle dark:border-slate-800/80;
+    }
+
+    .admin-shell .admin-data-table tbody tr:hover {
+        @apply bg-slate-50/80 dark:bg-slate-900/40;
+    }
+
+    .admin-shell .admin-drawer-backdrop {
+        @apply fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm;
+    }
+
+    .admin-shell .admin-drawer-panel {
+        @apply fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950;
+    }
+
+    .admin-shell .admin-drawer-body {
+        @apply min-h-0 flex-1 overflow-y-auto overscroll-contain p-6;
+    }
+
+    .admin-shell .admin-detail-section {
+        @apply mt-6 border-t border-slate-200 pt-6 dark:border-slate-800;
+    }
+
+    .admin-shell .admin-detail-list {
+        @apply mt-3 space-y-2;
+    }
+
+    .admin-shell .admin-detail-row {
+        @apply rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/50;
+    }
+
+    .admin-shell .admin-btn-secondary {
+        @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+    }
+
+    .admin-shell .admin-btn-danger {
+        @apply inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50;
+    }
+
+    .admin-shell .admin-btn-success {
+        @apply inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50;
+    }
+
+    .admin-shell .admin-student-name-link {
+        @apply text-left font-medium text-slate-900 underline-offset-2 transition hover:text-emerald-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-white dark:hover:text-emerald-300;
+    }
+
+    .admin-shell .admin-confirm-modal {
+        @apply fixed inset-0 z-[60] flex items-center justify-center p-4;
+    }
+
+    .admin-shell .admin-confirm-backdrop {
+        @apply absolute inset-0 bg-slate-950/50;
+    }
+
+    .admin-shell .admin-confirm-dialog {
+        @apply relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950;
+    }
+
+    .company-shell {
+        --company-accent: #0f766e;
+        --company-accent-hover: #115e59;
+        --company-accent-ink: #0f766e;
+        --company-accent-ink-dark: #5eead4;
+        --company-brand: #10b981;
+        --company-accent-soft: rgb(13 148 136 / 0.1);
+        --company-accent-soft-strong: rgb(20 184 166 / 0.16);
+        --company-accent-border: rgb(13 148 136 / 0.28);
+        --company-accent-border-soft: rgb(13 148 136 / 0.18);
+        --company-focus: rgb(20 184 166 / 0.45);
+        --workspace-accent: var(--company-accent);
+        --workspace-accent-ink: var(--company-accent-ink);
+        --workspace-accent-ink-dark: var(--company-accent-ink-dark);
+        --workspace-accent-soft: var(--company-accent-soft);
+        --workspace-accent-soft-strong: var(--company-accent-soft-strong);
+        --workspace-accent-border-soft: var(--company-accent-border-soft);
+        --workspace-accent-contrast: #fff;
+        --workspace-lang-ink: var(--company-accent-ink);
+        --workspace-lang-ink-dark: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .panel-sidebar {
+        border-right-color: var(--company-accent-border);
+    }
+
+    .company-shell .company-sidebar {
+        @apply fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transition-transform md:relative md:z-auto md:w-auto md:translate-x-0;
+    }
+
+    .company-shell .company-sidebar.company-sidebar-open {
+        @apply flex translate-x-0;
+    }
+
+    .company-shell .panel-nav-link-active {
+        background: var(--company-accent-soft);
+        color: var(--company-accent-ink);
+        font-weight: 500;
+    }
+
+    :is(.dark) .company-shell .panel-nav-link-active {
+        background: var(--company-accent-soft-strong);
+        color: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .company-brand {
+        color: var(--company-accent-ink);
+    }
+
+    :is(.dark) .company-shell .company-brand,
+    :is(.dark) .company-shell .company-accent-text {
+        color: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .company-accent-text {
+        color: var(--company-accent-ink);
+    }
+
+    .company-shell .company-context-card,
+    .company-shell .company-membership-active,
+    .company-shell .company-feedback-success {
+        border-color: var(--company-accent-border);
+        background: var(--company-accent-soft);
+        color: var(--company-accent-ink);
+    }
+
+    :is(.dark) .company-shell .company-context-card,
+    :is(.dark) .company-shell .company-membership-active,
+    :is(.dark) .company-shell .company-feedback-success {
+        background: var(--company-accent-soft-strong);
+        color: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .company-btn-primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.75rem;
+        background: var(--company-accent);
+        padding: 0.5rem 1rem;
+        color: #fff;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: background-color 150ms, box-shadow 150ms;
+    }
+
+    .company-shell .company-btn-primary:hover {
+        background: var(--company-accent-hover);
+    }
+
+    .company-shell .company-btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--company-accent-border);
+        border-radius: 0.75rem;
+        padding: 0.5rem 0.875rem;
+        color: var(--company-accent-ink);
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: background-color 150ms, border-color 150ms, color 150ms, box-shadow 150ms;
+    }
+
+    .company-shell .company-btn-secondary:hover {
+        background: var(--company-accent-soft);
+    }
+
+    :is(.dark) .company-shell .company-btn-secondary {
+        color: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .company-dashboard-icon {
+        display: inline-flex;
+        height: 2.5rem;
+        width: 2.5rem;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.75rem;
+        background: var(--company-accent-soft);
+        color: var(--company-accent-ink);
+    }
+
+    :is(.dark) .company-shell .company-dashboard-icon {
+        background: var(--company-accent-soft-strong);
+        color: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .company-task-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border: 1px solid var(--company-accent-border-soft);
+        border-radius: 0.875rem;
+        padding: 0.875rem 1rem;
+        transition: border-color 150ms, background-color 150ms, transform 150ms;
+    }
+
+    .company-shell .company-task-row:hover {
+        border-color: var(--company-accent-border);
+        background: var(--company-accent-soft);
+        transform: translateY(-1px);
+    }
+
+    .company-shell .company-task-dot {
+        height: 0.5rem;
+        width: 0.5rem;
+        flex: 0 0 auto;
+        border-radius: 9999px;
+        background: var(--company-accent);
+    }
+
+    .company-shell .company-summary-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid var(--company-accent-border-soft);
+        padding-bottom: 1rem;
+        color: rgb(100 116 139);
+        font-size: 0.875rem;
+    }
+
+    .company-shell .company-summary-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .company-shell .company-summary-row dd {
+        color: var(--company-accent-ink);
+        font-weight: 700;
+        text-align: right;
+    }
+
+    :is(.dark) .company-shell .company-summary-row dd {
+        color: var(--company-accent-ink-dark);
+    }
+
+    .company-shell .company-lang-active {
+        background: var(--company-accent);
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .company-shell .company-sidebar-footer {
+        border-top: 1px solid var(--company-accent-border-soft);
+    }
+
+    .workspace-header {
+        border-bottom: 1px solid var(--workspace-accent-border-soft);
+    }
+
+    .workspace-accent-dot {
+        background: var(--workspace-accent);
+    }
+
+    .workspace-accent-pill {
+        background: var(--workspace-accent);
+        color: var(--workspace-accent-contrast);
+    }
+
+    .workspace-accent-link {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--workspace-accent-ink);
+    }
+
+    .workspace-accent-link:hover {
+        text-decoration: underline;
+    }
+
+    :is(.dark) .workspace-accent-link {
+        color: var(--workspace-accent-ink-dark);
+    }
+
+    .workspace-lang-active {
+        background: var(--workspace-accent-soft);
+        font-weight: 600;
+        color: var(--workspace-lang-ink);
+    }
+
+    :is(.dark) .workspace-lang-active {
+        background: var(--workspace-accent-soft-strong);
+        color: var(--workspace-lang-ink-dark);
+    }
+
+    .workspace-accent-check {
+        color: var(--workspace-accent);
+    }
+
+    .company-shell :is(.company-btn-primary, .company-btn-secondary, .company-icon-button, .company-lang-link, .company-membership-option):focus-visible,
+    .company-shell :is(.panel-input, .panel-input-block):focus-visible {
+        outline: 3px solid var(--company-focus);
+        outline-offset: 2px;
+    }
+
+    .company-shell :is(.panel-input, .panel-input-block):focus-visible {
+        border-color: var(--company-accent);
     }
 }
 

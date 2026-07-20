@@ -23,7 +23,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="admin-shell min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
+<body class="admin-shell min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100" data-workspace-shell="admin"
     x-data="{
         sidebarOpen: false,
         theme: localStorage.getItem('panel-theme') || 'dark',
@@ -83,5 +83,6 @@
             </main>
         </div>
     </div>
+    @livewireScripts
 </body>
 </html>

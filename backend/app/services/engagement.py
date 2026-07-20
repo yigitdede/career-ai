@@ -34,7 +34,7 @@ def _lang_constraint(language: str) -> str:
             "technical assessments, guidance notes, feedback, strengths, and "
             "improvement suggestions EXCLUSIVELY in English. "
             "Even if the underlying database tags, job roles, or context data "
-            "contain Turkish words, you must translate and present them 100%% "
+            "contain Turkish words, you must translate and present them 100% "
             "in English. No Turkish vocabulary is allowed in the output."
         )
     return (
@@ -46,10 +46,15 @@ def _lang_constraint(language: str) -> str:
 
 
 def _build_prompt_with_lang(payload: dict, language: str) -> str:
-    """Prepend the hard language constraint as the very first line of the prompt."""
+    """Keep the AI prompt valid JSON while making the language rule explicit."""
     constraint = _lang_constraint(language)
-    payload["system_constraint"] = constraint
-    return constraint + "\n\n" + json.dumps(payload, ensure_ascii=False)
+    rules = payload.get("rules", [])
+    constrained_payload = {
+        "system_constraint": constraint,
+        **payload,
+        "rules": [constraint, *rules],
+    }
+    return json.dumps(constrained_payload, ensure_ascii=False)
 
 
 def career_context(db: Session, user_id: int) -> dict:

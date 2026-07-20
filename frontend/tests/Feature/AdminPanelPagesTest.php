@@ -122,21 +122,27 @@ class AdminPanelPagesTest extends TestCase
     public static function realModuleProvider(): array
     {
         return [
-            'students' => ['/admin/ogrenciler', 'students', 'Öğrenciler'],
             'readiness' => ['/admin/readiness', 'readiness', 'Readiness Analizi'],
             'skill passport' => ['/admin/yetenek-pasaportu', 'skill-passport', 'Yetenek Pasaportu'],
             'job radar' => ['/admin/is-radari', 'job-radar', 'İş Radarı'],
-            'applications' => ['/admin/basvurular', 'applications', 'Başvurular'],
-            'interviews' => ['/admin/mulakatlar', 'interviews', 'Mülakatlar'],
         ];
     }
 
     public function test_admin_locale_switch_route(): void
     {
-        $this->withSession(['auth.access_token' => 'admin-token', 'panel_locale' => 'tr'])
+        Http::fake([
+            'http://localhost:8000/api/v1/auth/me/locale' => Http::response(['preferred_locale' => 'en']),
+        ]);
+
+        $this->withSession([...$this->superAdminSession(), 'panel_locale' => 'tr'])
             ->get('/admin/locale/en')
             ->assertRedirect()
             ->assertSessionHas('panel_locale', 'en');
+
+        Http::assertSent(fn (Request $request): bool =>
+            $request->url() === 'http://localhost:8000/api/v1/auth/me/locale'
+            && $request['preferred_locale'] === 'en'
+        );
     }
 
     public function test_admin_dashboard_renders_english_shell(): void
@@ -184,6 +190,22 @@ class AdminPanelPagesTest extends TestCase
         $this->assertLessThan(strpos($html, 'data-admin-logout'), strpos($html, 'data-admin-profile'));
     }
 
+    public function test_admin_panel_loads_the_livewire_alpine_runtime(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/admin/dashboard' => Http::response([
+                'stats' => [],
+                'module_counts' => [],
+                'recent_students' => [],
+            ]),
+        ]);
+
+        $this->withSession($this->superAdminSession())
+            ->get('/admin')
+            ->assertOk()
+            ->assertSee('/livewire/livewire.js', false);
+    }
+
     public function test_admin_profile_and_account_management_pages_render_real_contracts(): void
     {
         $profile = $this->superAdminSession()['auth.user'];
@@ -191,7 +213,10 @@ class AdminPanelPagesTest extends TestCase
             'http://localhost:8000/api/v1/admin/profile' => Http::response($profile),
             'http://localhost:8000/api/v1/admin/accounts' => Http::response([
                 'permission_keys' => ['dashboard.view', 'students.view'],
-                'accounts' => [[...$profile, 'created_at' => '2026-07-16T00:00:00Z']],
+                'accounts' => [
+                    [...$profile, 'created_at' => '2026-07-16T00:00:00Z'],
+                    [...$profile, 'id' => 31, 'role' => 'admin', 'email' => 'ops@example.com', 'created_at' => '2026-07-16T00:00:00Z'],
+                ],
             ]),
             'http://localhost:8000/health' => Http::response(['status' => 'ok']),
         ]);
@@ -207,8 +232,48 @@ class AdminPanelPagesTest extends TestCase
             ->assertOk()
             ->assertSee('Yeni admin oluştur')
             ->assertSee('action="'.route('admin.accounts.store').'"', false)
+            ->assertSee('action="'.route('admin.accounts.destroy', 31).'"', false)
             ->assertSee('name="permissions[]"', false)
             ->assertSee('Öğrencileri görüntüle');
+    }
+
+    public function test_admin_account_permissions_are_grouped_by_page_with_compact_crud_controls(): void
+    {
+        $profile = $this->superAdminSession()['auth.user'];
+        Http::fake([
+            'http://localhost:8000/api/v1/admin/accounts' => Http::response([
+                'permission_keys' => [
+                    'dashboard.view',
+                    'students.view', 'students.write', 'students.delete',
+                    'readiness.view',
+                ],
+                'accounts' => [[
+                    ...$profile,
+                    'id' => 31,
+                    'role' => 'admin',
+                    'email' => 'ops@example.com',
+                    'admin_permissions' => ['dashboard.view', 'students.view'],
+                    'created_at' => '2026-07-16T00:00:00Z',
+                ]],
+            ]),
+            'http://localhost:8000/health' => Http::response(['status' => 'ok']),
+        ]);
+
+        $response = $this->withSession($this->superAdminSession())->get('/admin/hesaplar');
+
+        $response->assertOk()
+            ->assertSee('data-permission-selector', false)
+            ->assertSee('data-permission-module="students"', false)
+            ->assertSee('data-permission-module-toggle', false)
+            ->assertSee('data-permission-options', false)
+            ->assertSee('data-permission-count', false)
+            ->assertSee('value="students.view"', false)
+            ->assertSee('value="students.write"', false)
+            ->assertSee('value="students.delete"', false)
+            ->assertSee('data-permission-single="readiness.view"', false)
+            ->assertSee('Kariyer Veri Merkezi')
+            ->assertSee('Readiness Analizi')
+            ->assertDontSee('admin.nav.', false);
     }
 
     public function test_profile_and_admin_account_forms_forward_validated_payloads(): void
@@ -244,6 +309,9 @@ class AdminPanelPagesTest extends TestCase
             'permissions' => ['dashboard.view', 'applications.view'],
         ])->assertRedirect('/admin/hesaplar');
 
+        $this->withSession($this->superAdminSession())->delete('/admin/hesaplar/31')
+            ->assertRedirect('/admin/hesaplar');
+
         Http::assertSent(fn (Request $request): bool => $request->method() === 'PATCH'
             && $request->url() === 'http://localhost:8000/api/v1/admin/profile'
             && $request['new_password'] === 'YeniParola123!');
@@ -253,6 +321,8 @@ class AdminPanelPagesTest extends TestCase
         Http::assertSent(fn (Request $request): bool => $request->method() === 'PATCH'
             && $request->url() === 'http://localhost:8000/api/v1/admin/accounts/31'
             && $request['is_active'] === false);
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
+            && $request->url() === 'http://localhost:8000/api/v1/admin/accounts/31');
     }
 
     public function test_dashboard_shows_error_instead_of_demo_fallback_when_api_is_unavailable(): void

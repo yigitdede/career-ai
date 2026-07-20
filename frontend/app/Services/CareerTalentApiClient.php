@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\PortalAuthSession;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\UploadedFile;
@@ -107,6 +108,207 @@ class CareerTalentApiClient
         return $this->patchJson('/api/v1/admin/accounts/'.$userId, $payload, 15);
     }
 
+    public function deleteAdminAccount(int $userId): array
+    {
+        return $this->deleteJson('/api/v1/admin/accounts/'.$userId, 15);
+    }
+
+    public function adminOrganizations(): array
+    {
+        return $this->getJson('/api/v1/admin/organizations', 10);
+    }
+
+    public function adminOrganizationDetail(string $organizationId): array
+    {
+        return $this->getJson('/api/v1/admin/organizations/'.rawurlencode($organizationId), 15);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createAdminOrganization(array $payload): array
+    {
+        return $this->postJson('/api/v1/admin/organizations', $payload, 15);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateAdminOrganization(string $organizationId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/admin/organizations/'.rawurlencode($organizationId), $payload, 15);
+    }
+
+    public function deleteAdminOrganization(string $organizationId): array
+    {
+        return $this->deleteJson('/api/v1/admin/organizations/'.rawurlencode($organizationId), 15);
+    }
+
+    public function inviteAdminOrganizationOwner(string $organizationId, string $email): array
+    {
+        return $this->postJson('/api/v1/admin/organizations/'.rawurlencode($organizationId).'/owner-invitations', [
+            'email' => $email,
+            'role' => 'owner',
+        ], 15);
+    }
+
+    public function adminStudents(): array
+    {
+        return $this->getJson('/api/v1/admin/students', 10);
+    }
+
+    public function adminStudentDetail(int $userId): array
+    {
+        return $this->getJson('/api/v1/admin/students/'.$userId, 15);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createAdminStudent(array $payload): array
+    {
+        return $this->postJson('/api/v1/admin/students', $payload, 15);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateAdminStudent(int $userId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/admin/students/'.$userId, $payload, 15);
+    }
+
+    public function deleteAdminStudent(int $userId): array
+    {
+        return $this->deleteJson('/api/v1/admin/students/'.$userId, 15);
+    }
+
+    public function adminApplications(): array
+    {
+        return $this->getJson('/api/v1/admin/applications', 10);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createAdminApplication(array $payload): array
+    {
+        return $this->postJson('/api/v1/admin/applications', $payload, 15);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateAdminApplication(string $applicationId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/admin/applications/'.rawurlencode($applicationId), $payload, 15);
+    }
+
+    public function deleteAdminApplication(string $applicationId): array
+    {
+        return $this->deleteJson('/api/v1/admin/applications/'.rawurlencode($applicationId), 15);
+    }
+
+    public function adminInterviews(): array
+    {
+        return $this->getJson('/api/v1/admin/interviews', 10);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createAdminInterview(array $payload): array
+    {
+        return $this->postJson('/api/v1/admin/interviews', $payload, 120);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateAdminInterview(string $interviewId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/admin/interviews/'.rawurlencode($interviewId), $payload, 15);
+    }
+
+    public function deleteAdminInterview(string $interviewId): array
+    {
+        return $this->deleteJson('/api/v1/admin/interviews/'.rawurlencode($interviewId), 15);
+    }
+
+    public function companyContext(?string $accessToken = null): array
+    {
+        if ($accessToken !== null) {
+            try {
+                return $this->normalizeResponse(Http::withToken($accessToken)->timeout(10)->get($this->baseUrl().'/api/v1/company/context'));
+            } catch (ConnectionException $exception) {
+                return $this->connectionError($exception);
+            }
+        }
+
+        return $this->getJson('/api/v1/company/context', 10);
+    }
+
+    public function companyOrganizationProfile(string $slug): array
+    {
+        return $this->getJson('/api/v1/company/organizations/'.rawurlencode($slug), 10);
+    }
+
+    public function companyDashboard(string $organizationId, string $period = '30d'): array
+    {
+        return $this->getJson('/api/v1/company/dashboard?'.http_build_query(['period' => $period]), 10, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function companyPositions(string $organizationId, ?string $status = null): array
+    {
+        $query = $status !== null ? '?'.http_build_query(['status' => $status]) : '';
+
+        return $this->getJson('/api/v1/company/positions'.$query, 10, ['X-Organization-ID' => $organizationId]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createCompanyPosition(string $organizationId, array $payload): array
+    {
+        return $this->postJson('/api/v1/company/positions', $payload, 15, ['X-Organization-ID' => $organizationId]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateCompanyPosition(string $organizationId, string $positionId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/company/positions/'.rawurlencode($positionId), $payload, 15, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function deleteCompanyPosition(string $organizationId, string $positionId): array
+    {
+        return $this->deleteJson('/api/v1/company/positions/'.rawurlencode($positionId), 15, ['X-Organization-ID' => $organizationId]);
+    }
+
+    /** @param array<string, string> $filters */
+    public function companyApplications(string $organizationId, array $filters = []): array
+    {
+        $query = $filters !== [] ? '?'.http_build_query($filters) : '';
+
+        return $this->getJson('/api/v1/company/applications'.$query, 10, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function companyAssessments(string $organizationId): array
+    {
+        return $this->getJson('/api/v1/company/assessments', 10, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function companyMembers(string $organizationId): array
+    {
+        return $this->getJson('/api/v1/company/members', 10, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function inviteCompanyMember(string $organizationId, array $payload): array
+    {
+        return $this->postJson('/api/v1/company/invitations', $payload, 15, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function updateCompanyMember(string $organizationId, string $membershipId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/company/members/'.rawurlencode($membershipId), $payload, 15, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function updateCompanyOrganization(string $organizationId, array $payload): array
+    {
+        return $this->patchJson('/api/v1/company/organization', $payload, 15, ['X-Organization-ID' => $organizationId]);
+    }
+
+    public function companyInvitation(string $token): array
+    {
+        return $this->getJson('/api/v1/company/invitations/'.rawurlencode($token), 10);
+    }
+
+    public function acceptCompanyInvitation(string $token, array $payload): array
+    {
+        return $this->postJson('/api/v1/company/invitations/'.rawurlencode($token).'/accept', $payload, 15);
+    }
+
     /**
      * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
      */
@@ -164,7 +366,6 @@ class CareerTalentApiClient
     {
         return $this->postJson('/api/v1/panel/job-matches/analyze', ['url' => $url], 15);
     }
-
 
     /**
      * @param  array<string, mixed>  $target
@@ -237,6 +438,7 @@ class CareerTalentApiClient
             if (! $response->successful()) {
                 return $this->normalizeResponse($response);
             }
+
             return ['ok' => true, 'status' => $response->status(), 'body' => $response->json(), 'error' => null];
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
@@ -262,6 +464,7 @@ class CareerTalentApiClient
     {
         try {
             $response = $this->request(30)->get($this->baseUrl().'/api/v1/cv/documents/'.rawurlencode($documentId).'/download');
+
             return ['ok' => $response->successful(), 'status' => $response->status(), 'content' => $response->body(), 'content_type' => $response->header('Content-Type'), 'content_disposition' => $response->header('Content-Disposition')];
         } catch (ConnectionException $exception) {
             return ['ok' => false, 'status' => 502, 'content' => '', 'content_type' => null, 'content_disposition' => null];
@@ -501,10 +704,10 @@ class CareerTalentApiClient
     /**
      * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
      */
-    private function getJson(string $path, int $timeout): array
+    private function getJson(string $path, int $timeout, array $headers = []): array
     {
         try {
-            return $this->normalizeResponse($this->request($timeout)->get($this->baseUrl().$path));
+            return $this->normalizeResponse($this->request($timeout, $headers)->get($this->baseUrl().$path));
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }
@@ -514,15 +717,14 @@ class CareerTalentApiClient
      * @param  array<string, mixed>  $payload
      * @return array{ok: bool, status: ?int, body: ?array<string, mixed>, error: ?string}
      */
-    private function postJson(string $path, array $payload, int $timeout): array
+    private function postJson(string $path, array $payload, int $timeout, array $headers = []): array
     {
         try {
-            return $this->normalizeResponse($this->request($timeout)->post($this->baseUrl().$path, $payload));
+            return $this->normalizeResponse($this->request($timeout, $headers)->post($this->baseUrl().$path, $payload));
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }
     }
-
 
     /**
      * @param  array<string, mixed>  $payload
@@ -537,19 +739,19 @@ class CareerTalentApiClient
         }
     }
 
-    private function patchJson(string $path, array $payload, int $timeout): array
+    private function patchJson(string $path, array $payload, int $timeout, array $headers = []): array
     {
         try {
-            return $this->normalizeResponse($this->request($timeout)->patch($this->baseUrl().$path, $payload));
+            return $this->normalizeResponse($this->request($timeout, $headers)->patch($this->baseUrl().$path, $payload));
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }
     }
 
-    private function deleteJson(string $path, int $timeout): array
+    private function deleteJson(string $path, int $timeout, array $headers = []): array
     {
         try {
-            return $this->normalizeResponse($this->request($timeout)->delete($this->baseUrl().$path));
+            return $this->normalizeResponse($this->request($timeout, $headers)->delete($this->baseUrl().$path));
         } catch (ConnectionException $exception) {
             return $this->connectionError($exception);
         }
@@ -582,12 +784,12 @@ class CareerTalentApiClient
         ];
     }
 
-    private function request(int $timeout): PendingRequest
+    private function request(int $timeout, array $headers = []): PendingRequest
     {
-        $request = Http::timeout($timeout);
-        $token = session('auth.access_token');
+        $request = Http::timeout($timeout)->withHeaders($headers);
+        $token = PortalAuthSession::token(request());
 
-        return is_string($token) && $token !== ''
+        return $token !== null
             ? $request->withToken($token)
             : $request;
     }

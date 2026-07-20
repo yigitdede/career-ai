@@ -17,6 +17,7 @@
         'chat' => 'message-circle',
         'profile' => 'user-round',
         'admins' => 'users-round',
+        'organizations' => 'building-2',
     ][$icon ?? 'dashboard'] ?? 'menu';
 @endphp
 
