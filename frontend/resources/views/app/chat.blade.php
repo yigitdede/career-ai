@@ -18,7 +18,7 @@
     </header>
     @if ($chatError)<p class="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">{{ $chatError }}</p>@endif
 
-    <section data-chat-panel class="panel-card flex h-[calc(100dvh-13rem)] min-h-[28rem] max-h-[52rem] flex-col overflow-hidden p-5">
+    <section data-chat-panel class="panel-card flex h-[calc(100dvh-15rem)] min-h-[28rem] max-h-[52rem] flex-col overflow-hidden p-5 sm:h-[calc(100dvh-13rem)]">
         <div x-ref="messages" data-chat-messages class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-950/70" aria-live="polite">
             <div x-show="!messages.length" class="rounded-2xl rounded-tl-sm border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-slate-800 dark:text-slate-200">{{ __('panel.chat.ready_message') }}</div>
 

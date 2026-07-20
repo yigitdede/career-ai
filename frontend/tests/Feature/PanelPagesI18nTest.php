@@ -83,7 +83,8 @@ class PanelPagesI18nTest extends TestCase
 
     $response->assertOk()
       ->assertSee('data-chat-panel', false)
-      ->assertSee('h-[calc(100dvh-13rem)]', false)
+      ->assertSee('h-[calc(100dvh-15rem)]', false)
+      ->assertSee('sm:h-[calc(100dvh-13rem)]', false)
       ->assertSee('data-chat-messages', false)
       ->assertSee('min-h-0 flex-1 space-y-3 overflow-y-auto', false)
       ->assertSee('data-chat-cv-action', false)
