@@ -50,8 +50,48 @@ def test_chat_uses_ai_and_persists_user_and_assistant_messages(client, monkeypat
     assert [item["role"] for item in history] == ["user", "assistant"]
     assert history[0]["content"] == "Bugün ne yapmalıyım?"
 
+    assert client.get("/api/v1/career/chat/threads", headers=auth).json() == {
+        "items": [], "has_more": False,
+    }
+
+    new_chat = client.post("/api/v1/career/chat/threads", headers=auth)
+    assert new_chat.status_code == 201
+    assert client.get("/api/v1/career/chat", headers=auth).json() == []
+
+    threads = client.get("/api/v1/career/chat/threads?limit=20&offset=0", headers=auth).json()
+    assert threads["has_more"] is False
+    assert len(threads["items"]) == 1
+    assert threads["items"][0]["title"] == "Bugün ne yapmalıyım?"
+    assert threads["items"][0]["message_count"] == 2
+
+    archived = client.get(f"/api/v1/career/chat/threads/{threads['items'][0]['id']}", headers=auth)
+    assert archived.status_code == 200
+    assert [item["role"] for item in archived.json()["messages"]] == ["user", "assistant"]
+
     assert client.delete("/api/v1/career/chat", headers=auth).status_code == 204
     assert client.get("/api/v1/career/chat", headers=auth).json() == []
+
+
+def test_chat_thread_history_is_paginated_and_user_scoped(client, monkeypatch):
+    auth = register_and_headers(client, "chat-owner@example.com")
+    other = register_and_headers(client, "chat-other@example.com")
+    monkeypatch.setattr(
+        "app.services.engagement._invoke",
+        lambda _prompt, schema: ChatReplyAI(reply="Yanıt", suggested_actions=[]),
+    )
+
+    for index in range(2):
+        assert client.post("/api/v1/career/chat", headers=auth, json={"message": f"Konuşma {index + 1} başlığı"}).status_code == 201
+        assert client.post("/api/v1/career/chat/threads", headers=auth).status_code == 201
+
+    first_page = client.get("/api/v1/career/chat/threads?limit=1&offset=0", headers=auth).json()
+    assert len(first_page["items"]) == 1
+    assert first_page["has_more"] is True
+    second_page = client.get("/api/v1/career/chat/threads?limit=1&offset=1", headers=auth).json()
+    assert len(second_page["items"]) == 1
+    assert client.get(
+        f"/api/v1/career/chat/threads/{first_page['items'][0]['id']}", headers=other,
+    ).status_code == 404
 
 
 def test_chat_turns_explicit_job_cv_request_into_approved_action_preview(client, monkeypatch):

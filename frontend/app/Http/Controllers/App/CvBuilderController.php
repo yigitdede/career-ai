@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Data\PanelDemoData;
 use App\Services\CareerTalentApiClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -61,16 +62,24 @@ class CvBuilderController extends PanelController
     /** @param array<string, mixed> $profile */
     private function blankCvDraft(array $profile): array
     {
-        $personal = [
-            'full_name' => (string) ($profile['full_name'] ?? ''), 'email' => (string) ($profile['email'] ?? ''),
-            'phone' => (string) ($profile['phone'] ?? ''), 'location' => (string) ($profile['location'] ?? ''),
-            'linkedin' => (string) ($profile['linkedin'] ?? ''), 'summary' => '',
+        $draft = PanelDemoData::cvDraft();
+        $profilePersonal = [
+            'full_name' => (string) ($profile['full_name'] ?? ''),
+            'email' => (string) ($profile['email'] ?? ''),
+            'phone' => (string) ($profile['phone'] ?? ''),
+            'location' => (string) ($profile['location'] ?? ''),
+            'linkedin' => (string) ($profile['linkedin'] ?? ''),
         ];
-        $locale = static fn (): array => [
-            'personal' => $personal, 'education' => [], 'experience' => [], 'skills' => [],
-            'projects' => [], 'certificates' => [], 'enabledOptional' => [], 'optional' => [],
-        ];
-        return ['tr' => $locale(), 'en' => $locale()];
+
+        foreach (['tr', 'en'] as $locale) {
+            foreach ($profilePersonal as $key => $value) {
+                if ($value !== '') {
+                    $draft[$locale]['personal'][$key] = $value;
+                }
+            }
+        }
+
+        return $draft;
     }
 
     private function skillRadar(array $analysis): array

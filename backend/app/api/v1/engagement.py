@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,7 @@ from app.models.career_engine import CareerTarget, CareerTask, Evidence, JobOppo
 from app.models.engagement import CareerChatMessage, CareerInterview, CareerInterviewAnswer, CvDocument, JobApplication, PersonalTask, UserProfile
 from app.models.user import User
 from app.schemas.engagement import ApplicationCreate, ApplicationUpdate, CareerTaskStatusUpdate, ChatRequest, InterviewAnswerRequest, PersonalTaskCreate, PersonalTaskUpdate, ProfileUpdate, SkillEvidenceLinkRequest, TaskNoteUpdate
-from app.services.engagement import answer_chat, evaluate_interview_answer, serialize_answer, serialize_chat, serialize_interview, start_interview
+from app.services.engagement import answer_chat, current_chat_messages, evaluate_interview_answer, get_chat_thread, list_chat_threads, serialize_answer, serialize_chat, serialize_chat_thread, serialize_interview, start_interview, start_new_chat_thread
 from app.services.career_engine import (
     CareerLocalizationError,
     clear_skill_evidence,
@@ -69,8 +69,7 @@ def update_profile(body: ProfileUpdate, db: DB, user: CurrentUser):
 
 @router.get("/chat")
 def chat_history(db: DB, user: CurrentUser):
-    rows = db.scalars(select(CareerChatMessage).where(CareerChatMessage.user_id == user.id).order_by(CareerChatMessage.created_at)).all()
-    return [serialize_chat(row) for row in rows]
+    return [serialize_chat(row) for row in current_chat_messages(db, user.id)]
 
 
 @router.post("/chat", status_code=201)
@@ -83,8 +82,36 @@ def send_chat(body: ChatRequest, db: DB, user: CurrentUser):
 
 @router.delete("/chat", status_code=204)
 def clear_chat(db: DB, user: CurrentUser):
-    db.execute(delete(CareerChatMessage).where(CareerChatMessage.user_id == user.id)); db.commit()
+    rows = current_chat_messages(db, user.id)
+    if rows:
+        db.execute(delete(CareerChatMessage).where(CareerChatMessage.id.in_([row.id for row in rows])))
+        db.commit()
     return Response(status_code=204)
+
+
+@router.get("/chat/threads")
+def chat_threads(
+    db: DB,
+    user: CurrentUser,
+    limit: int = Query(20, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+):
+    return list_chat_threads(db, user.id, limit, offset)
+
+
+@router.post("/chat/threads", status_code=201)
+def create_chat_thread(db: DB, user: CurrentUser):
+    active, archived = start_new_chat_thread(db, user.id)
+    return {"thread": serialize_chat_thread(db, active), "archived": archived}
+
+
+@router.get("/chat/threads/{thread_id}")
+def chat_thread_detail(thread_id: str, db: DB, user: CurrentUser):
+    result = get_chat_thread(db, user.id, thread_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Sohbet bulunamadı")
+    thread, messages = result
+    return {"thread": serialize_chat_thread(db, thread), "messages": [serialize_chat(row) for row in messages]}
 
 
 @router.get("/interviews/current")

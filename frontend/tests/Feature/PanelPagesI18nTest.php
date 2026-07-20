@@ -65,9 +65,9 @@ class PanelPagesI18nTest extends TestCase
     $response = $this->get('/panel/cv-merkezi');
 
     $response->assertStatus(200);
-    $response->assertDontSee('Istanbul University', false);
-    $response->assertDontSee('İstanbul Üniversitesi', false);
-    $response->assertDontSee('Ayşe Yılmaz', false);
+    $response->assertSee('Istanbul University', false);
+    $response->assertSee('İstanbul Üniversitesi', false);
+    $response->assertSee('Ayşe Yılmaz', false);
     $response->assertSee('renderHarvardCvPdf', false);
     $response->assertSee('downloadPdfBlob', false);
     $response->assertSee('editLang', false);

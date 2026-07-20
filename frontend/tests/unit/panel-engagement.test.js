@@ -51,6 +51,50 @@ describe('account-backed engagement panels', () => {
         assert.equal(state.$refs.messages.scrollTop, 640);
     });
 
+    it('starts a new chat, keeps the archived thread in history, and opens it read-only', async () => {
+        const archived = { id: 'thread-old', title: 'Eski kariyer konuşması', message_count: 2, updated_at: '2026-07-20T20:00:00Z' };
+        const state = careerChat(
+            [{ id: 'm1', role: 'user', content: 'Eski kariyer konuşması', meta: {} }],
+            '/chat',
+            '/chat/new',
+            { failed: 'failed' },
+            { initialThreads: [], historyHasMore: false, historyUrl: '/chat/history', historyDetailUrl: '/chat/history/__THREAD__' },
+            {
+                fetch: async (url) => {
+                    if (url === '/chat/new') return { ok: true, status: 201, json: async () => ({ archived, thread: { id: 'thread-new' } }) };
+                    return { ok: true, status: 200, json: async () => ({ thread: archived, messages: [{ id: 'm1', role: 'user', content: 'Eski kariyer konuşması', meta: {} }] }) };
+                },
+            },
+        );
+
+        await state.startNewChat();
+        assert.deepEqual(state.messages, []);
+        assert.equal(state.threads[0].title, 'Eski kariyer konuşması');
+        await state.openHistory(archived);
+        assert.equal(state.historyOpen, true);
+        assert.equal(state.selectedThread.messages[0].content, 'Eski kariyer konuşması');
+    });
+
+    it('loads chat history in 20-record pages without duplicating entries', async () => {
+        const initial = Array.from({ length: 20 }, (_, index) => ({ id: `thread-${index}`, title: `Sohbet ${index}`, message_count: 2 }));
+        let requestedUrl = '';
+        const state = careerChat([], '/chat', '/chat/new', { failed: 'failed' }, {
+            initialThreads: initial,
+            historyHasMore: true,
+            historyUrl: '/chat/history',
+        }, {
+            fetch: async (url) => {
+                requestedUrl = url;
+                return { ok: true, status: 200, json: async () => ({ items: [{ id: 'thread-20', title: 'Sohbet 20', message_count: 2 }], has_more: false }) };
+            },
+        });
+
+        await state.loadMoreHistory();
+        assert.equal(requestedUrl, '/chat/history?offset=20&limit=20');
+        assert.equal(state.threads.length, 21);
+        assert.equal(state.historyHasMore, false);
+    });
+
     it('interview starts from AI questions and submits the exact answer', async () => {
         const requests = [];
         globalThis.fetch = async (url, options) => { requests.push([url, options]); return { ok: true, json: async () => url === '/start' ? ({ id: 'i1', questions: [{ id: 'q1', question: 'Örnek?', competency: 'SQL' }] }) : ({ score: 88, feedback: 'Güçlü', improvements: [] }) }; };

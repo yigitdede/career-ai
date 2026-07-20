@@ -1,13 +1,14 @@
 """Kullanıcı bağlamını kullanan sohbet ve mülakat AI servisleri."""
 
 import json
+from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask
-from app.models.engagement import CareerChatMessage, CareerInterview, CareerInterviewAnswer
+from app.models.engagement import CareerChatMessage, CareerChatThread, CareerInterview, CareerInterviewAnswer
 from app.schemas.engagement import ChatReplyAI, InterviewEvaluationAI, InterviewQuestionsAI
 from app.services.career_engine import _invoke
 
@@ -70,8 +71,123 @@ def career_context(db: Session, user_id: int) -> dict:
     }
 
 
+def _chat_title(message: str) -> str:
+    normalized = " ".join(message.split())
+    return normalized[:157] + "..." if len(normalized) > 160 else normalized
+
+
+def ensure_active_chat_thread(db: Session, user_id: int) -> CareerChatThread:
+    thread = db.scalar(
+        select(CareerChatThread).where(
+            CareerChatThread.user_id == user_id,
+            CareerChatThread.is_active.is_(True),
+        )
+    )
+    if thread is None:
+        thread = CareerChatThread(id=str(uuid4()), user_id=user_id, title="Yeni sohbet", is_active=True)
+        db.add(thread)
+        db.flush()
+
+    db.execute(
+        update(CareerChatMessage)
+        .where(CareerChatMessage.user_id == user_id, CareerChatMessage.thread_id.is_(None))
+        .values(thread_id=thread.id)
+    )
+    return thread
+
+
+def current_chat_messages(db: Session, user_id: int) -> list[CareerChatMessage]:
+    thread = ensure_active_chat_thread(db, user_id)
+    rows = db.scalars(
+        select(CareerChatMessage)
+        .where(CareerChatMessage.user_id == user_id, CareerChatMessage.thread_id == thread.id)
+        .order_by(CareerChatMessage.created_at, CareerChatMessage.id)
+    ).all()
+    db.commit()
+    return list(rows)
+
+
+def serialize_chat_thread(db: Session, row: CareerChatThread) -> dict:
+    message_count = db.scalar(
+        select(func.count(CareerChatMessage.id)).where(
+            CareerChatMessage.user_id == row.user_id,
+            CareerChatMessage.thread_id == row.id,
+        )
+    ) or 0
+    return {
+        "id": row.id,
+        "title": row.title,
+        "message_count": message_count,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def start_new_chat_thread(db: Session, user_id: int) -> tuple[CareerChatThread, dict | None]:
+    current = ensure_active_chat_thread(db, user_id)
+    message_count = db.scalar(
+        select(func.count(CareerChatMessage.id)).where(
+            CareerChatMessage.user_id == user_id,
+            CareerChatMessage.thread_id == current.id,
+        )
+    ) or 0
+    if message_count == 0:
+        db.commit()
+        db.refresh(current)
+        return current, None
+
+    current.is_active = False
+    current.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    archived = serialize_chat_thread(db, current)
+    active = CareerChatThread(id=str(uuid4()), user_id=user_id, title="Yeni sohbet", is_active=True)
+    db.add(active)
+    db.commit()
+    db.refresh(active)
+    return active, archived
+
+
+def list_chat_threads(db: Session, user_id: int, limit: int, offset: int) -> dict:
+    query = (
+        select(CareerChatThread)
+        .where(CareerChatThread.user_id == user_id, CareerChatThread.is_active.is_(False))
+        .order_by(CareerChatThread.updated_at.desc(), CareerChatThread.id.desc())
+        .offset(offset)
+        .limit(limit + 1)
+    )
+    rows = list(db.scalars(query).all())
+    return {
+        "items": [serialize_chat_thread(db, row) for row in rows[:limit]],
+        "has_more": len(rows) > limit,
+    }
+
+
+def get_chat_thread(db: Session, user_id: int, thread_id: str) -> tuple[CareerChatThread, list[CareerChatMessage]] | None:
+    thread = db.scalar(
+        select(CareerChatThread).where(
+            CareerChatThread.id == thread_id,
+            CareerChatThread.user_id == user_id,
+            CareerChatThread.is_active.is_(False),
+        )
+    )
+    if thread is None:
+        return None
+    rows = db.scalars(
+        select(CareerChatMessage)
+        .where(CareerChatMessage.user_id == user_id, CareerChatMessage.thread_id == thread.id)
+        .order_by(CareerChatMessage.created_at, CareerChatMessage.id)
+    ).all()
+    return thread, list(rows)
+
+
 def answer_chat(db: Session, user_id: int, message: str) -> CareerChatMessage:
-    history = db.scalars(select(CareerChatMessage).where(CareerChatMessage.user_id == user_id).order_by(CareerChatMessage.created_at.desc()).limit(12)).all()
+    thread = ensure_active_chat_thread(db, user_id)
+    history = db.scalars(
+        select(CareerChatMessage)
+        .where(CareerChatMessage.user_id == user_id, CareerChatMessage.thread_id == thread.id)
+        .order_by(CareerChatMessage.created_at.desc())
+        .limit(12)
+    ).all()
     output = _invoke(json.dumps({
         "purpose": "Kullanıcıya yalnız kendi kariyer verisine dayanan uygulanabilir kariyer desteği ver",
         "rules": [
@@ -105,10 +221,14 @@ def answer_chat(db: Session, user_id: int, message: str) -> CareerChatMessage:
             reply = "Bu ilan için CV taslağı oluşturabilmem adına önce CV Merkezi'nden bir CV yükleyip analizini tamamla."
             suggested_actions = ["CV Merkezi'ne git"]
 
-    user_row = CareerChatMessage(id=str(uuid4()), user_id=user_id, role="user", content=message, meta={})
+    if not history:
+        thread.title = _chat_title(message)
+    thread.updated_at = datetime.now(timezone.utc)
+    user_row = CareerChatMessage(id=str(uuid4()), user_id=user_id, thread_id=thread.id, role="user", content=message, meta={})
     assistant_row = CareerChatMessage(
         id=str(uuid4()),
         user_id=user_id,
+        thread_id=thread.id,
         role="assistant",
         content=reply,
         meta={"suggested_actions": suggested_actions, **({"action": action} if action else {})},
