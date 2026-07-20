@@ -1,7 +1,8 @@
 @extends('app.layouts.app')
 @section('title', __('panel.chat.title'))
+@section('main_class', 'md:flex md:min-h-0 md:flex-col md:overflow-hidden')
 @section('content')
-<div class="mx-auto max-w-4xl" x-data="careerChat({{ Js::from($messages) }}, @js(route('panel.chat.send')), @js(route('panel.chat.clear')), {{ Js::from([
+<div data-chat-page class="mx-auto w-full max-w-4xl md:flex md:min-h-0 md:flex-1 md:flex-col" x-data="careerChat({{ Js::from($messages) }}, @js(route('panel.chat.send')), @js(route('panel.chat.clear')), {{ Js::from([
     'failed' => __('panel.chat.failed'),
     'action_failed' => __('panel.chat.action_failed'),
     'action_timeout' => __('panel.chat.action_timeout'),
@@ -12,13 +13,13 @@
     'editorUrl' => route('panel.cv-builder', ['cvVersion' => '__VERSION__']),
     'activeCvName' => $activeCvName ?? '',
 ]) }})">
-    <header class="mb-8 flex items-start justify-between gap-4">
+    <header class="mb-8 flex shrink-0 items-start justify-between gap-4">
         <div><h1 class="mb-1 text-2xl font-bold">{{ __('panel.chat.title') }}</h1><p class="text-slate-600 dark:text-slate-400">{{ __('panel.chat.subtitle') }}</p></div>
         <button type="button" class="panel-outline-btn" @click="clear()" x-show="messages.length">{{ __('panel.chat.clear') }}</button>
     </header>
     @if ($chatError)<p class="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">{{ $chatError }}</p>@endif
 
-    <section data-chat-panel class="panel-card flex h-[calc(100dvh-15rem)] min-h-[28rem] max-h-[52rem] flex-col overflow-hidden p-5 sm:h-[calc(100dvh-13rem)]">
+    <section data-chat-panel class="panel-card flex h-[calc(100dvh-15rem)] min-h-[28rem] max-h-[52rem] flex-col overflow-hidden p-5 sm:h-[calc(100dvh-13rem)] md:h-auto md:min-h-0 md:max-h-none md:flex-1">
         <div x-ref="messages" data-chat-messages class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-slate-100 p-4 dark:border-slate-800 dark:bg-slate-950/70" aria-live="polite">
             <div x-show="!messages.length" class="rounded-2xl rounded-tl-sm border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-slate-800 dark:text-slate-200">{{ __('panel.chat.ready_message') }}</div>
 

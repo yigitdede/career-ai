@@ -82,9 +82,13 @@ class PanelPagesI18nTest extends TestCase
     $response = $this->withSession(['panel_locale' => 'tr'])->get('/panel/ai-yardimcisi');
 
     $response->assertOk()
+      ->assertSee('md:flex md:min-h-0 md:flex-col md:overflow-hidden', false)
+      ->assertSee('data-chat-page', false)
+      ->assertSee('md:min-h-0 md:flex-1', false)
       ->assertSee('data-chat-panel', false)
       ->assertSee('h-[calc(100dvh-15rem)]', false)
       ->assertSee('sm:h-[calc(100dvh-13rem)]', false)
+      ->assertSee('md:h-auto md:min-h-0 md:max-h-none md:flex-1', false)
       ->assertSee('data-chat-messages', false)
       ->assertSee('min-h-0 flex-1 space-y-3 overflow-y-auto', false)
       ->assertSee('data-chat-cv-action', false)
