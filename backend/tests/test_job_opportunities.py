@@ -1,7 +1,7 @@
 from app.core.database import get_db
 from app.main import app
 from app.models.career_engine import CareerAnalysis, JobOpportunity
-from app.schemas.career import CvRewriteAI, JobCvSuggestionAI, JobOpportunityAI
+from app.schemas.career import CvBuilderDraftAI, CvRewriteAI, JobCvSuggestionAI, JobOpportunityAI
 from app.services import job_opportunity as service
 
 
@@ -133,3 +133,59 @@ def test_private_listing_url_is_blocked(client, monkeypatch):
     assert result.status == "failed"
     assert result.error_code == "invalid_listing"
     db.close()
+
+
+def test_approved_job_suggestions_create_editable_non_main_cv_version(client, monkeypatch):
+    register(client); auth = headers(client)
+    db = db_session(); cv = ready_cv(); db.add(cv)
+    job = JobOpportunity(
+        id="chat-job-cv", user_id=1, status="ready", title="Data Analyst", company="Acme",
+        job_text="SQL ve Python bilen, satış dashboardları geliştirecek Data Analyst arıyoruz.",
+        required_skills=["SQL", "Python"], matched_skills=["SQL"], missing_skills=["Python"],
+        cv_suggestions=[{
+            "id": "safe-1", "action": "rewrite", "section": "experience",
+            "title": "SQL etkisini görünür yap", "reason": "İlan SQL bekliyor",
+            "suggested_text": "SQL ile satış raporları hazırladım.", "safe_to_apply": True,
+        }],
+    )
+    db.add(job); db.commit(); db.close()
+    monkeypatch.setattr(service, "_invoke", lambda _prompt, schema, language="tr": CvBuilderDraftAI(
+        personal={"full_name": "Job Student", "email": "jobs@example.com", "summary": "Veri analisti"},
+        education=[{"institution": "Example University", "degree": "Statistics"}],
+        experience=[{"organization": "Acme", "title": "Analist", "bullets": ["SQL ile satış raporları hazırladım."]}],
+        skills=[{"category": "Teknik", "items": "SQL"}],
+        projects=[], certificates=[],
+    ) if schema is CvBuilderDraftAI else None)
+
+    response = client.post(
+        "/api/v1/career/jobs/chat-job-cv/cv-version",
+        headers=auth,
+        json={"suggestion_ids": ["safe-1"], "source_cv_version_id": None},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["version_name"] == "Data Analyst için CV"
+    assert response.json()["is_main"] is False
+    assert response.json()["payload"]["experience"][0]["id"]
+    assert response.json()["payload"]["education"][0]["institution"] == "Example University"
+    assert response.json()["payload"]["enabledOptional"] == []
+    assert response.json()["payload"]["optional"] == {}
+
+    rejected = client.post(
+        "/api/v1/career/jobs/chat-job-cv/cv-version",
+        headers=auth,
+        json={"suggestion_ids": ["missing"], "source_cv_version_id": None},
+    )
+    assert rejected.status_code == 422
+
+    register(client, "other-source@example.com"); other_auth = headers(client, "other-source@example.com")
+    other_version = client.post(
+        "/api/v1/cv/versions", headers=other_auth,
+        json={"version_name": "Other CV", "language": "tr", "is_main": False, "payload": {"personal": {}}},
+    ).json()
+    cross_user_source = client.post(
+        "/api/v1/career/jobs/chat-job-cv/cv-version",
+        headers=auth,
+        json={"suggestion_ids": ["safe-1"], "source_cv_version_id": other_version["id"]},
+    )
+    assert cross_user_source.status_code == 422

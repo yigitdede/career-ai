@@ -77,6 +77,27 @@ class PanelPagesI18nTest extends TestCase
     $response->assertSee('_skipLocalesSync', false);
   }
 
+  public function test_chat_owns_its_scroll_and_exposes_approved_cv_action_contract(): void
+  {
+    $response = $this->withSession(['panel_locale' => 'tr'])->get('/panel/ai-yardimcisi');
+
+    $response->assertOk()
+      ->assertSee('data-chat-panel', false)
+      ->assertSee('h-[calc(100dvh-13rem)]', false)
+      ->assertSee('data-chat-messages', false)
+      ->assertSee('min-h-0 flex-1 space-y-3 overflow-y-auto', false)
+      ->assertSee('data-chat-cv-action', false)
+      ->assertSee((string) \Illuminate\Support\Js::from([
+        'jobStatusUrl' => route('panel.job-matches.status', ['jobId' => '__JOB__']),
+        'createCvVersionUrl' => route('panel.chat.cv-version', ['jobId' => '__JOB__']),
+        'versionsUrl' => route('panel.cv.versions.list'),
+        'editorUrl' => route('panel.cv-builder', ['cvVersion' => '__VERSION__']),
+        'activeCvName' => '',
+      ]), false)
+      ->assertSee('maxlength="30000"', false)
+      ->assertSee('Onayla ve yeni CV sürümü oluştur');
+  }
+
   public function test_locale_switch_tr_to_en(): void
   {
     $this->withMiddleware();

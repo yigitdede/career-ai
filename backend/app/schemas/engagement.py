@@ -23,13 +23,14 @@ class ProfileUpdate(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=2, max_length=4000)
+    message: str = Field(min_length=2, max_length=30000)
 
 
 class ChatReplyAI(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     reply: str = Field(min_length=2, max_length=5000)
     suggested_actions: list[str] = Field(default_factory=list, max_length=6)
+    action: Literal["none", "create_cv_for_job"] = "none"
 
 
 class InterviewQuestionAI(BaseModel):
@@ -93,4 +94,3 @@ class ApplicationUpdate(BaseModel):
     stage: Literal["applied", "interview", "offer", "rejected"] | None = None
     next_action: str | None = Field(default=None, max_length=300)
     note: str | None = Field(default=None, max_length=4000)
-

@@ -29,7 +29,10 @@ from app.schemas.career import (
     EvidenceResponse,
     JobAnalyzeRequest,
     JobApplyRequest,
+    JobCvVersionRequest,
 )
+from app.schemas.cv import CandidateCvVersionResponse
+from app.services.ai_factory import AIOutputError, AIProviderError, AIUnavailableError
 from app.services.career_engine import (
     CareerLocalizationError,
     ensure_career_localizations,
@@ -40,7 +43,13 @@ from app.services.career_engine import (
     submit_evidence,
     reset_career_state,
 )
-from app.services.job_opportunity import create_job, current_analysis as current_ready_analysis, serialize_job
+from app.services.job_opportunity import (
+    JobCvVersionError,
+    create_cv_version_for_job,
+    create_job,
+    current_analysis as current_ready_analysis,
+    serialize_job,
+)
 from app.tasks.career import analyze_cv_task, analyze_job_task, apply_job_suggestions_task, plan_target_task, review_evidence_task
 
 router = APIRouter(prefix="/career", tags=["Career Engine"], dependencies=[Depends(get_current_user)])
@@ -222,6 +231,25 @@ def apply_job(job_id: str, request: JobApplyRequest, db: DB, user: CurrentUser):
     apply_job_suggestions_task.delay(row.id, request.suggestion_ids)
     db.refresh(row)
     return serialize_job(row)
+
+
+@router.post("/jobs/{job_id}/cv-version", response_model=CandidateCvVersionResponse, status_code=201)
+def create_job_cv_version(job_id: str, request: JobCvVersionRequest, db: DB, user: CurrentUser):
+    row = db.scalar(select(JobOpportunity).where(JobOpportunity.id == job_id, JobOpportunity.user_id == user.id))
+    if row is None:
+        raise _not_found()
+    try:
+        return create_cv_version_for_job(
+            db,
+            row,
+            request.suggestion_ids,
+            request.source_cv_version_id,
+            user.preferred_locale,
+        )
+    except JobCvVersionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 

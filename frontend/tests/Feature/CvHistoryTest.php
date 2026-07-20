@@ -139,6 +139,23 @@ class CvHistoryTest extends TestCase
         $this->get('/panel/cv-merkezi?cvDocument=generated-1')->assertOk()->assertSee('Restore User')->assertSee('restoredFromHistory', false);
     }
 
+    public function test_ai_created_cv_version_opens_in_builder_without_replacing_main_cv(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/versions' => Http::response([[
+                'id' => 'version-ai', 'version_name' => 'Data Analyst için CV', 'language' => 'tr', 'is_main' => false,
+                'payload' => ['personal' => ['full_name' => 'AI Draft User', 'summary' => 'İlana özel özet'], 'education' => [], 'experience' => [], 'skills' => [], 'projects' => [], 'certificates' => [], 'enabledOptional' => [], 'optional' => []],
+            ]]),
+            'http://localhost:8000/*' => Http::response([]),
+        ]);
+
+        $this->get('/panel/cv-merkezi?cvVersion=version-ai')
+            ->assertOk()
+            ->assertSee('AI Draft User')
+            ->assertSee('İlana özel özet')
+            ->assertSee('restoredFromHistory', false);
+    }
+
     public function test_history_document_can_start_a_fresh_ai_analysis(): void
     {
         Http::fake([

@@ -14,13 +14,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.career_engine import CareerAnalysis, JobOpportunity
-from app.schemas.career import CvRewriteAI, JobOpportunityAI
+from app.models.engagement import CandidateCvVersion
+from app.schemas.career import CvBuilderDraftAI, CvRewriteAI, JobOpportunityAI
 from app.services.ai_factory import AIOutputError, AIProviderError, AIUnavailableError
 from app.services.career_engine import _invoke, _public_host, analyze_row, create_analysis
 
 
 class JobListingError(ValueError):
     """The supplied listing cannot safely be read."""
+
+
+class JobCvVersionError(ValueError):
+    """The requested CV-version draft cannot be created."""
 
 
 def current_analysis(db: Session, user_id: int) -> CareerAnalysis | None:
@@ -135,6 +140,93 @@ def apply_suggestions(db: Session, row: JobOpportunity, suggestion_ids: list[str
         return analyze_job(db, row, new_analysis)
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
         return _apply_fail(db, row, str(exc))
+
+
+def create_cv_version_for_job(
+    db: Session,
+    row: JobOpportunity,
+    suggestion_ids: list[str],
+    source_cv_version_id: str | None,
+    language: str,
+) -> CandidateCvVersion:
+    if row.status != "ready":
+        raise JobCvVersionError("CV taslağı yalnız tamamlanan ilan analizi için oluşturulabilir")
+
+    indexed = {item.get("id"): item for item in (row.cv_suggestions or [])}
+    selected = [indexed.get(item_id) for item_id in dict.fromkeys(suggestion_ids)]
+    if not selected or any(item is None or not item.get("safe_to_apply") for item in selected):
+        raise JobCvVersionError("Yalnız güvenli CV önerileri kullanılabilir")
+
+    source_version = None
+    if source_cv_version_id:
+        source_version = db.scalar(
+            select(CandidateCvVersion).where(
+                CandidateCvVersion.id == source_cv_version_id,
+                CandidateCvVersion.user_id == row.user_id,
+            )
+        )
+        if source_version is None:
+            raise JobCvVersionError("Kaynak CV sürümü bulunamadı")
+
+    analysis = current_analysis(db, row.user_id)
+    if source_version is None and analysis is None:
+        raise JobCvVersionError("Hazır CV analizi bulunamadı")
+
+    requested_language = source_version.language if source_version is not None else language
+    target_language = requested_language if requested_language in {"tr", "en"} else "tr"
+    source_cv: dict[str, Any] = (
+        {"type": "saved_version", "payload": source_version.payload}
+        if source_version is not None
+        else {
+            "type": "active_analysis",
+            "file_name": analysis.file_name,
+            "cv_text": (analysis.cv_text or "")[:24000],
+            "profile": analysis.profile or {},
+            "skills": analysis.skills or [],
+        }
+    )
+    output = _invoke(json.dumps({
+        "purpose": "Onaylanan ilan önerilerine göre düzenlenebilir yeni bir CV sürümü oluştur",
+        "language": target_language,
+        "rules": [
+            "Kaynak CV'deki kişi, kurum, tarih, eğitim, deneyim, proje, sertifika ve iletişim gerçeklerini koru",
+            "Kaynakta olmayan deneyim, beceri, sertifika, sayı, süre, görev veya başarı uydurma",
+            "Yalnız seçilen güvenli önerileri uygula ve ilanla ilgili mevcut gerçekleri daha görünür yaz",
+            "Eksik ilan becerilerini kişi kazanmış gibi CV'ye ekleme",
+            "Tüm CV'yi CV Merkezi düzenleyici alanlarına ayırarak döndür",
+        ],
+        "job": {
+            "title": row.title,
+            "company": row.company,
+            "job_text": (row.job_text or "")[:16000],
+            "required_skills": row.required_skills or [],
+            "matched_skills": row.matched_skills or [],
+            "missing_skills": row.missing_skills or [],
+        },
+        "source_cv": source_cv,
+        "selected_suggestions": selected,
+    }, ensure_ascii=False), CvBuilderDraftAI, language=target_language)
+
+    payload = output.model_dump(mode="json")
+    for section in ("education", "experience", "skills", "projects", "certificates"):
+        for item in payload[section]:
+            item["id"] = str(uuid4())
+    payload["enabledOptional"] = []
+    payload["optional"] = {}
+
+    version_name = f"CV for {row.title or 'Job'}" if target_language == "en" else f"{row.title or 'İlan'} için CV"
+    version = CandidateCvVersion(
+        id=str(uuid4()),
+        user_id=row.user_id,
+        version_name=version_name[:160],
+        language=target_language,
+        is_main=False,
+        payload=payload,
+    )
+    db.add(version)
+    db.commit()
+    db.refresh(version)
+    return version
 
 
 def serialize_job(row: JobOpportunity) -> dict[str, Any]:

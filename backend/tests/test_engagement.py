@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.main import app
-from app.models.career_engine import JobOpportunity
+from app.models.career_engine import CareerAnalysis, JobOpportunity
 from app.models.engagement import JobApplication
 from app.models.user import User
 from app.schemas.engagement import ChatReplyAI, InterviewEvaluationAI, InterviewQuestionAI, InterviewQuestionsAI
@@ -52,6 +52,58 @@ def test_chat_uses_ai_and_persists_user_and_assistant_messages(client, monkeypat
 
     assert client.delete("/api/v1/career/chat", headers=auth).status_code == 204
     assert client.get("/api/v1/career/chat", headers=auth).json() == []
+
+
+def test_chat_turns_explicit_job_cv_request_into_approved_action_preview(client, monkeypatch):
+    auth = register_and_headers(client)
+    db = db_session()
+    user = db.scalar(select(User).where(User.email == "engagement@example.com"))
+    user_id = user.id
+    db.add(CareerAnalysis(
+        id="chat-active-cv", user_id=user_id, status="ready", source="upload",
+        file_name="aktif-cv.pdf", cv_text="SQL ve Python ile veri analizi projeleri geliştirdim.",
+        profile={}, skills=[{"name": "SQL", "score": 80}], radar=[],
+    ))
+    db.commit(); db.close()
+    queued = []
+    monkeypatch.setattr(
+        "app.services.engagement._invoke",
+        lambda _prompt, _schema: ChatReplyAI(
+            reply="İlanı aktif CV'nle karşılaştırıyorum; değişiklikleri onayına sunacağım.",
+            suggested_actions=[],
+            action="create_cv_for_job",
+        ),
+    )
+    monkeypatch.setattr("app.tasks.career.analyze_job_task.delay", lambda job_id: queued.append(job_id))
+
+    message = "CV'mi bu ilana göre oluştur: Data Analyst rolü için ileri SQL, Python, dashboard hazırlama ve paydaş iletişimi deneyimi arıyoruz."
+    response = client.post("/api/v1/career/chat", headers=auth, json={"message": message})
+
+    assert response.status_code == 201
+    action = response.json()["meta"]["action"]
+    assert action == {"type": "job_cv_draft", "job_id": queued[0], "status": "queued"}
+    db = db_session(); job = db.get(JobOpportunity, queued[0])
+    assert job is not None and job.user_id == user_id and job.job_text == message
+    db.close()
+
+
+def test_chat_never_offers_cv_write_action_without_ready_cv_analysis(client, monkeypatch):
+    auth = register_and_headers(client, "chat-no-cv@example.com")
+    monkeypatch.setattr(
+        "app.services.engagement._invoke",
+        lambda _prompt, _schema: ChatReplyAI(reply="Taslak hazırlıyorum.", action="create_cv_for_job"),
+    )
+    queued = []
+    monkeypatch.setattr("app.tasks.career.analyze_job_task.delay", lambda job_id: queued.append(job_id))
+
+    response = client.post("/api/v1/career/chat", headers=auth, json={
+        "message": "CV'mi bu ilana göre oluştur: SQL, Python, raporlama ve paydaş iletişimi bilen Data Analyst arıyoruz; en az iki proje örneği bekleniyor.",
+    })
+
+    assert response.status_code == 201
+    assert "önce CV Merkezi'nden bir CV yükleyip analizini tamamla" in response.json()["content"]
+    assert "action" not in response.json()["meta"]
+    assert queued == []
 
 
 def test_interview_questions_and_scoring_are_ai_backed(client, monkeypatch):

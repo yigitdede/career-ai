@@ -14,6 +14,43 @@ describe('account-backed engagement panels', () => {
         assert.deepEqual(sent, { message: 'Bugün ne yapmalıyım?' }); assert.equal(state.messages[0].role, 'user'); assert.equal(state.messages[1].content, 'Hedef görevi tamamla');
     });
 
+    it('chat polls a job action, keeps approval explicit, and opens the new CV version', async () => {
+        const requests = [];
+        let navigated = '';
+        const action = { type: 'job_cv_draft', job_id: 'job-1', status: 'queued' };
+        const state = careerChat([], '/chat', '/chat/clear', { failed: 'failed' }, {
+            jobStatusUrl: '/jobs/__JOB__', createCvVersionUrl: '/jobs/__JOB__/cv-version', editorUrl: '/cv?cvVersion=__VERSION__',
+        }, {
+            sleep: async () => {},
+            navigate: (url) => { navigated = url; },
+            fetch: async (url, options = {}) => {
+                requests.push([url, options]);
+                if (url === '/chat') return { ok: true, status: 201, json: async () => ({ id: 'a1', role: 'assistant', content: 'Önizleme hazır', meta: { action } }) };
+                if (url === '/jobs/job-1') return { ok: true, status: 200, json: async () => ({ id: 'job-1', status: 'ready', title: 'Analyst', match_score: 72, matched_skills: ['SQL'], missing_skills: ['Power BI'], cv_suggestions: [{ id: 's1', safe_to_apply: true, title: 'SQL', reason: 'İlan', suggested_text: 'SQL raporu' }] }) };
+                return { ok: true, status: 201, json: async () => ({ id: 'version-1' }) };
+            },
+        });
+        state.text = 'CVmi bu uzun ilan metnine göre oluşturmak istiyorum. SQL ve raporlama deneyimi arıyoruz.';
+
+        await state.send();
+        const hydrated = state.messages[1].meta.action;
+        assert.equal(hydrated.status, 'ready');
+        assert.deepEqual(hydrated.selected, ['s1']);
+        assert.equal(navigated, '');
+
+        await state.createCvVersion(hydrated);
+        assert.deepEqual(JSON.parse(requests.at(-1)[1].body), { suggestion_ids: ['s1'], source_cv_version_id: null });
+        assert.equal(navigated, '/cv?cvVersion=version-1');
+    });
+
+    it('chat message viewport scrolls instead of growing the panel page', () => {
+        const state = careerChat([], '/chat', '/clear', { failed: 'failed' });
+        state.$refs = { messages: { scrollTop: 0, scrollHeight: 640 } };
+        state.$nextTick = (callback) => callback();
+        state.scrollToBottom();
+        assert.equal(state.$refs.messages.scrollTop, 640);
+    });
+
     it('interview starts from AI questions and submits the exact answer', async () => {
         const requests = [];
         globalThis.fetch = async (url, options) => { requests.push([url, options]); return { ok: true, json: async () => url === '/start' ? ({ id: 'i1', questions: [{ id: 'q1', question: 'Örnek?', competency: 'SQL' }] }) : ({ score: 88, feedback: 'Güçlü', improvements: [] }) }; };

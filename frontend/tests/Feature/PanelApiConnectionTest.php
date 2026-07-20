@@ -28,6 +28,24 @@ class PanelApiConnectionTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/career/applications' && $request['company'] === 'Acme');
     }
 
+    public function test_chat_cv_version_approval_is_proxied_to_backend(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/career/jobs/job-1/cv-version' => Http::response([
+                'id' => 'version-1', 'version_name' => 'Data Analyst için CV', 'is_main' => false,
+            ], 201),
+        ]);
+
+        $this->postJson(route('panel.chat.cv-version', ['jobId' => 'job-1']), [
+            'suggestion_ids' => ['suggestion-1'],
+            'source_cv_version_id' => 'version-source',
+        ])->assertCreated()->assertJsonPath('id', 'version-1');
+
+        Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/career/jobs/job-1/cv-version'
+            && $request['suggestion_ids'] === ['suggestion-1']
+            && $request['source_cv_version_id'] === 'version-source');
+    }
+
     public function test_dashboard_uses_fastapi_panel_payload(): void
     {
         $task = ['id' => 'api-task-1', 'target_id' => 'target-1', 'title' => 'API görevini tamamla', 'hint' => 'FastAPI kariyer verisi', 'status' => 'pending', 'evidence_required' => true, 'evidence_types' => ['link'], 'skill_impacts' => ['API'], 'training_suggestions' => [['catalog_id' => 'api-course', 'title' => 'API Kaynak Kursu', 'provider' => 'FastAPI Academy', 'url' => 'https://example.com/api-course', 'skills' => ['API']]], 'feedback' => null];

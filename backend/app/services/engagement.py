@@ -74,13 +74,45 @@ def answer_chat(db: Session, user_id: int, message: str) -> CareerChatMessage:
     history = db.scalars(select(CareerChatMessage).where(CareerChatMessage.user_id == user_id).order_by(CareerChatMessage.created_at.desc()).limit(12)).all()
     output = _invoke(json.dumps({
         "purpose": "Kullanıcıya yalnız kendi kariyer verisine dayanan uygulanabilir kariyer desteği ver",
-        "rules": ["CV'de veya kanıtlarda olmayan başarı uydurma", "Belirsiz bilgiyi belirt", "Yanıtı kısa ve eyleme dönük tut"],
+        "rules": [
+            "CV'de veya kanıtlarda olmayan başarı uydurma",
+            "Belirsiz bilgiyi belirt",
+            "Yanıtı kısa ve eyleme dönük tut",
+            "action=create_cv_for_job yalnız kullanıcı gerçek ilan içeriğini bu mesajda verip CV'sini ilana göre oluşturmayı veya uyarlamayı açıkça isterse seç",
+            "İlan içeriği yoksa, kullanıcı yalnız niyet veya gelecek planı söylüyorsa action=none seç",
+        ],
         "career_context": career_context(db, user_id),
         "recent_messages": [{"role": row.role, "content": row.content} for row in reversed(history)],
         "user_message": message,
     }, ensure_ascii=False), ChatReplyAI)
+    action = None
+    reply = output.reply
+    suggested_actions = output.suggested_actions
+    if output.action == "create_cv_for_job" and len(message.strip()) >= 80:
+        analysis = db.scalar(
+            select(CareerAnalysis)
+            .where(CareerAnalysis.user_id == user_id, CareerAnalysis.status == "ready")
+            .order_by(CareerAnalysis.created_at.desc())
+        )
+        if analysis is not None:
+            from app.services.job_opportunity import create_job
+            from app.tasks.career import analyze_job_task
+
+            job = create_job(db, user_id, None, message)
+            analyze_job_task.delay(job.id)
+            action = {"type": "job_cv_draft", "job_id": job.id, "status": job.status}
+        else:
+            reply = "Bu ilan için CV taslağı oluşturabilmem adına önce CV Merkezi'nden bir CV yükleyip analizini tamamla."
+            suggested_actions = ["CV Merkezi'ne git"]
+
     user_row = CareerChatMessage(id=str(uuid4()), user_id=user_id, role="user", content=message, meta={})
-    assistant_row = CareerChatMessage(id=str(uuid4()), user_id=user_id, role="assistant", content=output.reply, meta={"suggested_actions": output.suggested_actions})
+    assistant_row = CareerChatMessage(
+        id=str(uuid4()),
+        user_id=user_id,
+        role="assistant",
+        content=reply,
+        meta={"suggested_actions": suggested_actions, **({"action": action} if action else {})},
+    )
     db.add_all([user_row, assistant_row]); db.commit(); db.refresh(assistant_row)
     return assistant_row
 

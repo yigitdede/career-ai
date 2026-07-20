@@ -31,6 +31,18 @@ class CvBuilderController extends PanelController
                 $cvDraft = $snapshot;
                 $restoredFromHistory = true;
             }
+        } elseif ($request->filled('cvVersion')) {
+            $versionsResult = $api->cvVersions();
+            $versions = ($versionsResult['ok'] ?? false) && is_array($versionsResult['body'] ?? null) ? $versionsResult['body'] : [];
+            $version = collect($versions)->first(
+                fn ($item) => is_array($item) && (string) ($item['id'] ?? '') === (string) $request->query('cvVersion')
+            );
+            $language = is_array($version) ? (string) ($version['language'] ?? '') : '';
+            $payload = is_array($version) ? ($version['payload'] ?? null) : null;
+            if (in_array($language, ['tr', 'en'], true) && is_array($payload)) {
+                $cvDraft[$language] = $payload;
+                $restoredFromHistory = true;
+            }
         }
 
         return $this->panelView('app.cv-builder', [

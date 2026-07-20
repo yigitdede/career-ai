@@ -158,6 +158,7 @@ Route::prefix('panel')->name('panel.')->middleware(['auth.api', 'auth.api.candid
     Route::get('/ai-yardimcisi', [ChatController::class, 'show'])->name('chat');
     Route::post('/ai-yardimcisi', [ChatController::class, 'send'])->name('chat.send');
     Route::delete('/ai-yardimcisi', [ChatController::class, 'clear'])->name('chat.clear');
+    Route::post('/ai-yardimcisi/ilan/{jobId}/cv-surumu', [ChatController::class, 'createCvVersion'])->name('chat.cv-version');
 
     Route::get('/kariyer-rotam/kariyer-merdiveni', fn () => redirect()->to(route('panel.roadmap').'#kariyer-merdiveni'))->name('career-ladder');
     Route::get('/kariyer-rotam/egitimler', fn () => redirect()->to(route('panel.roadmap').'#egitimler'))->name('learning');

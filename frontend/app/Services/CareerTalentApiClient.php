@@ -682,6 +682,15 @@ class CareerTalentApiClient
         return $this->postJson('/api/v1/career/chat', ['message' => $message], 90);
     }
 
+    /** @param list<string> $suggestionIds */
+    public function createCareerChatCvVersion(string $jobId, array $suggestionIds, ?string $sourceCvVersionId): array
+    {
+        return $this->postJson('/api/v1/career/jobs/'.rawurlencode($jobId).'/cv-version', [
+            'suggestion_ids' => $suggestionIds,
+            'source_cv_version_id' => $sourceCvVersionId,
+        ], 120);
+    }
+
     public function clearCareerChat(): array
     {
         return $this->deleteJson('/api/v1/career/chat', 15);
