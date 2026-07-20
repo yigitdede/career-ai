@@ -411,7 +411,7 @@ return [
     ],
     'cv_builder' => [
         'title' => 'CV Center',
-        'subtitle' => 'Build and analyze your CV, then export an ATS-friendly PDF.',
+        'subtitle' => 'Upload or build your CV. Analyze it and export an ATS-friendly PDF.',
         'preview' => 'Preview',
         'edit' => 'Edit',
         'download_pdf' => 'Download PDF',
@@ -419,7 +419,7 @@ return [
         'saving' => 'Saving…',
         'analyzing' => 'Analyzing CV…',
         'saved' => 'Saved',
-        'save_hint' => 'Save runs AI analysis on your CV content and updates the skill radar.',
+        'save_hint' => 'Your CV content is analyzed with AI and your skill radar is created.',
         'upload_desc' => 'Upload a PDF to extract skills automatically and reflect them in your career ladder.',
         'analyze_too_short' => 'CV content is too short to analyze. Add a summary, experience, or skills.',
         'analyze_failed' => 'CV analysis could not complete. Try again shortly.',

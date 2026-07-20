@@ -411,7 +411,7 @@ return [
     ],
     'cv_builder' => [
         'title' => 'CV Merkezi',
-        'subtitle' => 'CV oluştur, analiz et ve ATS uyumlu PDF çıktısı al.',
+        'subtitle' => 'CV yükle ya da CV oluştur. Analiz et ve ATS uyumlu PDF çıktısı al.',
         'preview' => 'Önizleme',
         'edit' => 'Düzenle',
         'download_pdf' => 'PDF indir',
@@ -419,7 +419,7 @@ return [
         'saving' => 'Kaydediliyor…',
         'analyzing' => 'CV analiz ediliyor…',
         'saved' => 'Kaydedildi',
-        'save_hint' => 'Kaydet: CV içeriği AI ile analiz edilir ve yetenek radarı güncellenir.',
+        'save_hint' => 'CV içeriği AI ile analiz edilir ve yetenek radarı oluşur.',
         'upload_desc' => 'PDF yüklediğinde yeteneklerin otomatik çıkarılır ve kariyer merdivenine yansır.',
         'analyze_too_short' => 'CV içeriği analiz için çok kısa. Özet, deneyim veya yetenek ekleyin.',
         'analyze_failed' => 'CV analizi tamamlanamadı. Biraz sonra tekrar dene.',
