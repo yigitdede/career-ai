@@ -55,6 +55,7 @@ class DashboardCvRadarTest extends TestCase
             ->assertDontSee('data-dashboard-cv-actions', false)
             ->assertSee('İş Analisti', false)
             ->assertSee('%86', false)
-            ->assertSee(__('panel.skill_radar.from_cv_analysis'), false);
+            ->assertSee(__('panel.skill_radar.from_cv_analysis'), false)
+            ->assertDontSee(__('panel.skill_radar.subtitle', ['role' => 'İş Analisti']));
     }
 }
