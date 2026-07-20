@@ -227,7 +227,34 @@
                                     <span x-show="historyLoadingId === @js($document['id'])" x-cloak>{{ __('panel.profile.cv_analyze_active_working') }}</span>
                                 </button>
                                 @if (($document['kind'] ?? '') === 'generated')<a href="{{ route('panel.cv-builder', ['cvDocument' => $document['id']]) }}" class="text-sky-600 hover:underline dark:text-sky-400">{{ __('panel.profile.cv_restore') }}</a>@endif
-                                <form method="post" action="{{ route('panel.cv-history.destroy', $document['id']) }}" onsubmit='return confirm(@json(__('panel.profile.cv_delete_confirm')))'>@csrf @method('DELETE')<button type="submit" class="text-red-600 hover:underline dark:text-red-400">{{ __('panel.profile.cv_delete') }}</button></form>
+                                <div x-data="{ deleteDialogOpen: false }">
+                                    <button type="button" @click="deleteDialogOpen = true"
+                                        class="text-red-600 hover:underline dark:text-red-400">{{ __('panel.profile.cv_delete') }}</button>
+                                    <div data-cv-delete-dialog x-show="deleteDialogOpen" x-cloak
+                                        @keydown.escape.window="deleteDialogOpen = false"
+                                        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+                                        role="dialog" aria-modal="true" aria-labelledby="cv-delete-title-{{ $loop->index }}">
+                                        <div @click.outside="deleteDialogOpen = false" class="panel-card w-full max-w-md space-y-5 p-6">
+                                            <div>
+                                                <h2 id="cv-delete-title-{{ $loop->index }}" class="text-lg font-semibold">{{ __('panel.profile.cv_delete_title') }}</h2>
+                                                <p class="panel-muted mt-2 text-sm">{{ __('panel.profile.cv_delete_confirm') }}</p>
+                                                <p class="mt-3 truncate text-sm font-medium">{{ $document['display_name'] }}</p>
+                                            </div>
+                                            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                                <button type="button" @click="deleteDialogOpen = false" class="panel-btn-secondary">
+                                                    {{ __('panel.profile.cv_delete_cancel') }}
+                                                </button>
+                                                <form method="post" action="{{ route('panel.cv-history.destroy', $document['id']) }}">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 sm:w-auto">
+                                                        {{ __('panel.profile.cv_delete_action') }}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </li>
                     @endforeach

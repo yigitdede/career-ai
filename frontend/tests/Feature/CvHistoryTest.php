@@ -38,6 +38,11 @@ class CvHistoryTest extends TestCase
             ->assertDontSee('panel-upload-zone', false)
             ->assertDontSee('Tekrar indir')
             ->assertSee('Aç ve düzenle')->assertSee('Aktif analiz yap')
+            ->assertSee('data-cv-delete-dialog', false)
+            ->assertSee('@click="deleteDialogOpen = true"', false)
+            ->assertSee(__('panel.profile.cv_delete_title'))
+            ->assertSee(__('panel.profile.cv_delete_action'))
+            ->assertDontSee('return confirm(', false)
             ->assertSee('13.07.2026 21:30');
 
         $dom = new \DOMDocument();
