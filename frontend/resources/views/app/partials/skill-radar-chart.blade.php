@@ -17,12 +17,47 @@
 
     $labelPoint = static function (int $i, int $total) use ($cx, $cy, $maxR): array {
         $angle = (2 * M_PI * $i / $total) - M_PI / 2;
-        $r = $maxR + 22;
+        $r = $maxR + 26;
 
         return [
             round($cx + $r * cos($angle), 2),
             round($cy + $r * sin($angle), 2),
         ];
+    };
+
+    $wrapSkillLabel = static function (string $label, int $maxChars = 11): array {
+        if (mb_strlen($label) <= $maxChars) {
+            return [$label];
+        }
+
+        $words = preg_split('/[\s\/\-]+/u', trim($label), -1, PREG_SPLIT_NO_EMPTY) ?: [$label];
+        $lines = [];
+        $current = '';
+
+        foreach ($words as $word) {
+            $candidate = $current === '' ? $word : $current.' '.$word;
+            if (mb_strlen($candidate) <= $maxChars) {
+                $current = $candidate;
+                continue;
+            }
+
+            if ($current !== '') {
+                $lines[] = $current;
+            }
+
+            while (mb_strlen($word) > $maxChars) {
+                $lines[] = mb_substr($word, 0, $maxChars);
+                $word = mb_substr($word, $maxChars);
+            }
+
+            $current = $word;
+        }
+
+        if ($current !== '') {
+            $lines[] = $current;
+        }
+
+        return $lines !== [] ? $lines : [$label];
     };
 
     $currentPoly = [];

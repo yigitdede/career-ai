@@ -64,7 +64,7 @@ return [
         'cv_section_desc' => 'Mevcut CV yükle veya sıfırdan Harvard formatında CV oluştur.',
         'upload_cv' => 'CV yükle',
         'create_cv' => 'CV oluştur',
-        'weekly_tasks' => 'Bu haftanın görevleri',
+        'weekly_tasks' => 'Görevlerim',
         'tasks_add' => 'Görev ekle',
         'tasks_add_placeholder' => 'Kendi görevini yaz…',
         'tasks_note' => 'Kişisel not',

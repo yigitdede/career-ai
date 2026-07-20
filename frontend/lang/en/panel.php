@@ -64,7 +64,7 @@ return [
         'cv_section_desc' => 'Upload your CV or create one from scratch in Harvard format.',
         'upload_cv' => 'Upload CV',
         'create_cv' => 'Build CV',
-        'weekly_tasks' => 'This week\'s tasks',
+        'weekly_tasks' => 'My tasks',
         'tasks_add' => 'Add task',
         'tasks_add_placeholder' => 'Write your own task…',
         'tasks_note' => 'Personal note',

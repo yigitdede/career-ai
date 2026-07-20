@@ -1,6 +1,6 @@
-<div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
+<div class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-center">
     <div class="relative mx-auto w-full max-w-md">
-        <svg viewBox="0 0 320 320" class="h-auto w-full" role="img" aria-label="{{ __('panel.skill_radar.title') }}">
+        <svg viewBox="0 0 320 320" overflow="visible" class="h-auto w-full overflow-visible" role="img" aria-label="{{ __('panel.skill_radar.title') }}">
             @foreach ([25, 50, 75, 100] as $ring)
                 @php
                     $ringPoints = [];
@@ -37,12 +37,31 @@
                     [$px, $py] = $radarPoint($i, $n, (float) $skill['score']);
                     [$lx, $ly] = $labelPoint($i, $n);
                     $anchor = $lx < $cx - 10 ? 'end' : ($lx > $cx + 10 ? 'start' : 'middle');
+                    $labelLines = $wrapSkillLabel((string) $skill['label']);
+                    $labelWidth = 78;
+                    $lineHeight = 11;
+                    $labelHeight = count($labelLines) * $lineHeight + 2;
+                    $labelX = match ($anchor) {
+                        'end' => max(4, $lx - $labelWidth),
+                        'start' => min(320 - $labelWidth - 4, $lx),
+                        default => $lx - ($labelWidth / 2),
+                    };
+                    $labelY = $ly - ($labelHeight / 2);
+                    $labelAlign = match ($anchor) {
+                        'end' => 'text-right',
+                        'start' => 'text-left',
+                        default => 'text-center',
+                    };
                 @endphp
                 <circle cx="{{ $px }}" cy="{{ $py }}" r="3.5" class="fill-emerald-500 dark:fill-emerald-400"/>
-                <text x="{{ $lx }}" y="{{ $ly }}" text-anchor="{{ $anchor }}" dominant-baseline="middle"
-                    class="fill-slate-600 text-[9px] font-medium dark:fill-slate-300">
-                    {{ $skill['label'] }}
-                </text>
+                <foreignObject x="{{ $labelX }}" y="{{ $labelY }}" width="{{ $labelWidth }}" height="{{ $labelHeight }}">
+                    <div xmlns="http://www.w3.org/1999/xhtml"
+                        class="{{ $labelAlign }} break-words text-[9px] font-medium leading-[11px] text-slate-600 dark:text-slate-300">
+                        @foreach ($labelLines as $line)
+                            <div>{{ $line }}</div>
+                        @endforeach
+                    </div>
+                </foreignObject>
             @endforeach
         </svg>
 
@@ -58,7 +77,7 @@
         </div>
     </div>
 
-    <ul class="space-y-3">
+    <ul class="mx-auto w-full max-w-[17rem] space-y-2 lg:mx-0">
         @foreach ($skills as $skill)
             @php
                 $gap = max(0, $skill['target'] - $skill['score']);
@@ -66,22 +85,22 @@
                     ? 'bg-emerald-500'
                     : ($gap > 20 ? 'bg-amber-500' : 'bg-sky-500');
             @endphp
-            <li class="panel-entry !space-y-2 !p-3">
-                <div class="flex items-center justify-between gap-2 text-sm">
-                    <span class="font-medium text-slate-800 dark:text-slate-100">{{ $skill['label'] }}</span>
-                    <span class="tabular-nums text-slate-600 dark:text-slate-300">
+            <li class="panel-entry !space-y-1.5 !p-2.5">
+                <div class="flex items-start justify-between gap-2 text-xs">
+                    <span class="min-w-0 flex-1 font-medium leading-snug text-slate-800 dark:text-slate-100">{{ $skill['label'] }}</span>
+                    <span class="shrink-0 tabular-nums text-slate-600 dark:text-slate-300">
                         <span class="font-semibold text-emerald-600 dark:text-emerald-400">%{{ $skill['score'] }}</span>
-                        <span class="panel-muted text-xs">/ %{{ $skill['target'] }}</span>
+                        <span class="panel-muted text-[10px]">/ %{{ $skill['target'] }}</span>
                     </span>
                 </div>
-                <div class="relative h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div class="relative h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                     <div class="absolute inset-y-0 left-0 rounded-full {{ $barColor }}" style="width: {{ $skill['score'] }}%"></div>
                     <div class="absolute inset-y-0 w-0.5 rounded-full bg-slate-400 dark:bg-slate-500" style="left: {{ $skill['target'] }}%"></div>
                 </div>
                 @if ($gap > 0)
-                    <p class="panel-muted text-[11px]">{{ __('panel.skill_radar.gap', ['points' => $gap]) }}</p>
+                    <p class="panel-muted text-[10px] leading-tight">{{ __('panel.skill_radar.gap', ['points' => $gap]) }}</p>
                 @else
-                    <p class="text-[11px] text-emerald-600 dark:text-emerald-400">{{ __('panel.skill_radar.met') }}</p>
+                    <p class="text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">{{ __('panel.skill_radar.met') }}</p>
                 @endif
             </li>
         @endforeach
