@@ -237,6 +237,40 @@ def test_archived_cv_analysis_clears_old_target_only_after_ai_succeeds(client, m
     db.close()
 
 
+def test_analysis_stream_emits_complete_event_for_ready_analysis(client):
+    register(client)
+    auth = headers(client)
+    override = __import__("app.main", fromlist=["app"]).app.dependency_overrides
+    db = next(override[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    row = CareerAnalysis(
+        id="stream-ready-analysis",
+        user_id=1,
+        status="ready",
+        source="upload",
+        file_name="cv.pdf",
+        cv_text="SQL Python",
+        profile={},
+        skills=[{"name": "SQL", "score": 80}],
+        radar=[{"label": "SQL", "score": 80, "target": 90}],
+        career_ladder=[],
+        localizations={
+            "tr": {"current_role": "Analist", "profile": {}, "skills": [{"name": "SQL", "score": 80}], "radar": [{"label": "SQL", "score": 80, "target": 90}], "career_ladder": []},
+            "en": {"current_role": "Analyst", "profile": {}, "skills": [{"name": "SQL", "score": 80}], "radar": [{"label": "SQL", "score": 80, "target": 90}], "career_ladder": []},
+        },
+    )
+    db.add(row)
+    db.commit()
+    db.close()
+
+    with client.stream("GET", "/api/v1/career/analysis/stream-ready-analysis/stream", headers=auth) as response:
+        assert response.status_code == 200
+        body = "".join(response.iter_text())
+
+    assert "event: complete" in body
+    assert '"status": "ready"' in body
+    assert "stream-ready-analysis" in body
+
+
 def test_current_analysis_keeps_last_ready_result_while_new_analysis_is_not_ready(client):
     register(client)
     auth = headers(client)

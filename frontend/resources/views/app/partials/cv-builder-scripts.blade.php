@@ -1,5 +1,5 @@
 <script>
-function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '', statusUrl = '', archivePdfUrl = '', restoredFromHistory = false) {
+function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '', statusUrl = '', archivePdfUrl = '', restoredFromHistory = false, streamUrl = '') {
     return {
         mode: 'edit',
         locales: initial,
@@ -25,6 +25,7 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         resetWorking: false,
         resetError: '',
         statusUrl,
+        streamUrl,
         cvFileLabel: @js(__('panel.skill_radar.cv_file', ['name' => ':name'])),
         optionalSectionPick: '',
         _skipLocalesSync: false,
@@ -172,8 +173,12 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                     throw new Error(payload.message || this.uiLabels[this.panelLocale]?.analyze_failed || 'CV analizi başarısız');
                 }
 
-                if (payload.status === 'queued' && payload.analysis_id && this.statusUrl && window.pollCvAnalysis) {
-                    const completed = await window.pollCvAnalysis(payload.analysis_id, this.statusUrl, this.panelLocale);
+                if (payload.status === 'queued' && payload.analysis_id && (this.streamUrl || this.statusUrl) && window.waitForCvAnalysis) {
+                    const completed = await window.waitForCvAnalysis(payload.analysis_id, {
+                        statusUrl: this.statusUrl,
+                        streamUrl: this.streamUrl,
+                        locale: this.panelLocale,
+                    });
                     const radar = completed.skill_radar || {
                         overall_match: completed.radar?.reduce((sum, item) => sum + Number(item.score || 0), 0) / Math.max(completed.radar?.length || 1, 1),
                         target_role: completed.current_role || '',

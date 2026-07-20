@@ -553,6 +553,11 @@ class CareerTalentApiClient
         return $this->getJson('/api/v1/career/analysis/'.rawurlencode($analysisId), 10);
     }
 
+    public function careerAnalysisStreamUrl(string $analysisId): string
+    {
+        return $this->baseUrl().'/api/v1/career/analysis/'.rawurlencode($analysisId).'/stream';
+    }
+
     public function currentCareerAnalysis(): array
     {
         return $this->getJson('/api/v1/career/analysis/current', 10);
