@@ -383,6 +383,8 @@ def create_analysis(
     source: str,
     file_name: str | None,
     cv_document_id: str | None = None,
+    *,
+    commit: bool = True,
 ) -> CareerAnalysis:
     now = datetime.now(timezone.utc)
     row = CareerAnalysis(
@@ -391,8 +393,11 @@ def create_analysis(
         created_at=now, updated_at=now,
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
+    if commit:
+        db.commit()
+        db.refresh(row)
+    else:
+        db.flush()
     return row
 
 

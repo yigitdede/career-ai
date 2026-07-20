@@ -20,7 +20,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.engagement import CvDocument, CandidateCvVersion
 from app.schemas.career import CVQueueResponse
-from app.schemas.cv import AnalyzeTextRequest, CandidateCvVersionCreate, CandidateCvVersionUpdate, CandidateCvVersionResponse
+from app.schemas.cv import AnalyzeTextRequest, CandidateCvVersionCreate, CandidateCvVersionUpdate, CandidateCvVersionResponse, GeneratedCvQueueResponse
 from app.services.career_engine import career_evidence_file_paths, create_analysis, remove_career_evidence_files, reset_career_state
 from app.services.cv_content import has_meaningful_cv_content
 from app.services.cv_parser import extract_text_from_pdf
@@ -55,6 +55,18 @@ def _remove_cv_files(user_id: int, documents: list[CvDocument]) -> None:
 def _safe_pdf_name(name: str) -> str:
     clean = re.sub(r'[\x00-\x1f\x7f/\\]+', "-", name.strip())[:250] or "cv.pdf"
     return clean if clean.lower().endswith(".pdf") else clean + ".pdf"
+
+
+def _generated_snapshot(builder_data: str, language: str) -> dict:
+    if len(builder_data.encode()) > 1_000_000:
+        raise HTTPException(status_code=413, detail="CV oluşturucu verisi çok büyük")
+    try:
+        snapshot = json.loads(builder_data)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="CV oluşturucu verisi geçersiz") from exc
+    if not isinstance(snapshot, dict) or language not in {"tr", "en"}:
+        raise HTTPException(status_code=422, detail="CV oluşturucu verisi geçersiz")
+    return snapshot
 
 
 def _serialize_document(row: CvDocument, include_builder: bool = False) -> dict:
@@ -169,14 +181,77 @@ async def archive_generated_cv(db: DB, user: CurrentUser, file: UploadFile = Fil
     data = await file.read()
     if len(data) > _MAX_BYTES: raise HTTPException(status_code=413, detail="Dosya çok büyük")
     if not data.startswith(b"%PDF"): raise HTTPException(status_code=422, detail="Geçersiz PDF")
-    if len(builder_data.encode()) > 1_000_000: raise HTTPException(status_code=413, detail="CV oluşturucu verisi çok büyük")
-    try: snapshot = json.loads(builder_data)
-    except json.JSONDecodeError as exc: raise HTTPException(status_code=422, detail="CV oluşturucu verisi geçersiz") from exc
-    if not isinstance(snapshot, dict) or language not in {"tr", "en"}: raise HTTPException(status_code=422, detail="CV oluşturucu verisi geçersiz")
+    snapshot = _generated_snapshot(builder_data, language)
     document_id = str(uuid4()); name = _safe_pdf_name(display_name)
     row = CvDocument(id=document_id, user_id=user.id, kind="generated", display_name=name, original_name=name, file_path=_store_pdf(user.id, document_id, data), file_size=len(data), language=language, builder_data=snapshot, is_current=False)
     db.add(row); db.commit(); db.refresh(row)
     return _serialize_document(row)
+
+
+@router.post("/documents/generated/activate", response_model=GeneratedCvQueueResponse, status_code=202)
+async def archive_and_analyze_generated_cv(
+    db: DB,
+    user: CurrentUser,
+    file: UploadFile = File(...),
+    display_name: str = Form(...),
+    language: str = Form(...),
+    builder_data: str = Form(...),
+    cv_text: str = Form(...),
+):
+    data = await file.read()
+    if len(data) > _MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Dosya çok büyük")
+    if not data.startswith(b"%PDF"):
+        raise HTTPException(status_code=422, detail="Geçersiz PDF")
+    snapshot = _generated_snapshot(builder_data, language)
+    normalized_text = cv_text.strip()
+    if len(normalized_text) < 40 or not has_meaningful_cv_content(normalized_text):
+        raise HTTPException(status_code=422, detail="CV'de analiz edilebilir deneyim, eğitim, proje veya yetenek içeriği bulunamadı")
+
+    document_id = str(uuid4())
+    name = _safe_pdf_name(display_name)
+    evidence_files = career_evidence_file_paths(db, user.id)
+    file_path = _store_pdf(user.id, document_id, data)
+    try:
+        reset_career_state(db, user.id, "all", commit=False)
+        document = CvDocument(
+            id=document_id,
+            user_id=user.id,
+            kind="generated",
+            display_name=name,
+            original_name=name,
+            file_path=file_path,
+            file_size=len(data),
+            language=language,
+            builder_data=snapshot,
+            is_current=True,
+        )
+        db.add(document)
+        analysis = create_analysis(
+            db,
+            user.id,
+            normalized_text,
+            "builder",
+            name,
+            document_id,
+            commit=False,
+        )
+        db.commit()
+        db.refresh(document)
+        db.refresh(analysis)
+    except Exception:
+        db.rollback()
+        Path(file_path).unlink(missing_ok=True)
+        raise
+
+    remove_career_evidence_files(user.id, evidence_files)
+    analyze_cv_task.delay(analysis.id)
+    return {
+        "analysis_id": analysis.id,
+        "status": analysis.status,
+        "file_name": name,
+        "cv_document_id": document.id,
+    }
 
 
 @router.get("/documents/{document_id}/download")
@@ -280,4 +355,3 @@ def delete_cv_version(version_id: str, db: DB, user: CurrentUser):
     db.delete(version)
     db.commit()
     return Response(status_code=204)
-

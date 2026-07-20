@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
 class AnalyzeTextRequest(BaseModel):
     cv_text: str = Field(..., min_length=40)
     file_name: str | None = None
+
+
+class GeneratedCvQueueResponse(BaseModel):
+    analysis_id: str
+    status: Literal["queued", "running", "ready", "failed"]
+    file_name: str
+    cv_document_id: str
 
 
 class CandidateCvVersionCreate(BaseModel):
@@ -36,4 +44,3 @@ class CandidateCvVersionResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-

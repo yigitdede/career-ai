@@ -1,5 +1,5 @@
 <script>
-function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '', statusUrl = '', archivePdfUrl = '', restoredFromHistory = false, streamUrl = '') {
+function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFileName = '', analyzeBuilderUrl = '', clearUrl = '', statusUrl = '', archivePdfUrl = '', restoredFromHistory = false, streamUrl = '', serverAnalysisStatus = '', serverAnalysisId = '') {
     return {
         mode: 'edit',
         locales: initial,
@@ -15,6 +15,9 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         archivePdfUrl,
         restoredFromHistory,
         saveStatus: 'idle',
+        hasReadyAnalysis: serverHasCv,
+        serverAnalysisStatus,
+        serverAnalysisId,
         analyzeError: null,
         radarExpanded: localStorage.getItem('panel-cv-radar-expanded') !== '0',
         cvFileName: serverFileName || '',
@@ -54,6 +57,24 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
             this.normalizeAllLocales();
             window.addEventListener('panel-cv-updated', () => this.syncFromStore());
             this.fetchVersions();
+            this.resumePendingAnalysis();
+        },
+
+        async resumePendingAnalysis() {
+            if (!['queued', 'running'].includes(this.serverAnalysisStatus) || !this.serverAnalysisId || !window.waitForCvAnalysis) {
+                return;
+            }
+            try {
+                await window.waitForCvAnalysis(this.serverAnalysisId, {
+                    statusUrl: this.statusUrl,
+                    streamUrl: this.streamUrl,
+                    locale: this.panelLocale,
+                });
+                window.location.reload();
+            } catch (error) {
+                this.serverAnalysisStatus = 'failed';
+                this.analyzeError = error?.message || this.uiLabels[this.panelLocale]?.analyze_failed || 'CV analizi başarısız';
+            }
         },
 
         syncFromStore() {
@@ -140,6 +161,10 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
             return this.cvFileLabel.replace(':name', this.cvFileName || 'cv');
         },
 
+        analysisPending() {
+            return this.saveStatus === 'saving' || ['queued', 'running'].includes(this.serverAnalysisStatus);
+        },
+
         onRadarToggle(event) {
             this.radarExpanded = event.target.open;
             localStorage.setItem('panel-cv-radar-expanded', this.radarExpanded ? '1' : '0');
@@ -156,26 +181,42 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         },
 
         async saveCv() {
-            if (!window.PanelCvStore || !this.analyzeBuilderUrl) {
+            if (!this.analyzeBuilderUrl) {
                 return;
             }
 
             this.saveStatus = 'saving';
             this.analyzeError = null;
+            const previousPreviewLang = this.previewLang;
 
             try {
+                if (typeof window.renderHarvardCvPdf !== 'function') {
+                    throw new Error('PDF exporter missing');
+                }
+
+                const language = this.editLang;
+                this.previewLang = language;
+                await this.waitForPreviewRender();
+                const preview = document.getElementById('harvard-preview');
+                const rawName = this.locales[language]?.personal?.full_name || 'CV';
+                const safeName = `${rawName} CV`.trim().replace(/[\\/:*?"<>|]/g, '-');
+                const filename = `${safeName || 'CV'}.pdf`;
+                const blob = await window.renderHarvardCvPdf(preview, filename);
+                const form = new FormData();
+                form.append('pdf', blob, filename);
+                form.append('display_name', filename);
+                form.append('language', language);
+                form.append('locales', JSON.stringify(this.locales));
+                this.cvFileName = filename;
+
                 const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
                 const response = await fetch(this.analyzeBuilderUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         Accept: 'application/json',
                         ...(token ? { 'X-CSRF-TOKEN': token } : {}),
                     },
-                    body: JSON.stringify({
-                        locales: this.locales,
-                        locale: this.panelLocale,
-                    }),
+                    body: form,
                 });
 
                 const payload = await response.json().catch(() => ({}));
@@ -195,22 +236,25 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                         target_role: completed.current_role || '',
                         skills: completed.radar || [],
                     };
-                    window.PanelCvStore.saveBuilder(this.locales, this.panelLocale);
-                    window.PanelCvStore.saveFromAnalysis(payload.file_name, this.panelLocale, radar);
+                    window.PanelCvStore?.saveBuilder(this.locales, this.panelLocale);
+                    window.PanelCvStore?.saveFromAnalysis(payload.file_name, this.panelLocale, radar);
                 } else if (payload.skill_radar || (payload.status === 'ready' && payload.radar)) {
                     const radar = payload.skill_radar || {
                         overall_match: payload.radar.reduce((sum, item) => sum + Number(item.score || 0), 0) / Math.max(payload.radar.length, 1),
                         target_role: payload.current_role || '',
                         skills: payload.radar,
                     };
-                    window.PanelCvStore.saveBuilder(this.locales, this.panelLocale);
-                    window.PanelCvStore.saveFromAnalysis(payload.file_name, this.panelLocale, radar);
+                    window.PanelCvStore?.saveBuilder(this.locales, this.panelLocale);
+                    window.PanelCvStore?.saveFromAnalysis(payload.file_name, this.panelLocale, radar);
                 }
 
+                this.saveStatus = 'saved';
+                this.previewLang = previousPreviewLang;
                 window.location.reload();
             } catch (err) {
                 this.analyzeError = err?.message || 'CV analizi başarısız';
                 this.saveStatus = 'idle';
+                this.previewLang = previousPreviewLang;
             }
         },
 

@@ -19,7 +19,7 @@ class CvBuilderController extends PanelController
         $documentsResult = $api->cvDocuments();
         $documents = ($documentsResult['ok'] ?? false) && is_array($documentsResult['body'] ?? null) ? $documentsResult['body'] : [];
         $currentCv = collect($documents)->first(
-            fn ($item) => is_array($item) && ($item['kind'] ?? null) === 'uploaded' && ($item['is_current'] ?? false)
+            fn ($item) => is_array($item) && ($item['is_current'] ?? false)
         );
 
         $cvDraft = $this->blankCvDraft($profile);
@@ -51,6 +51,8 @@ class CvBuilderController extends PanelController
             'cvLabels' => $this->cvLabelsForJs(),
             'skillRadar' => $this->skillRadar($analysis),
             'hasCvAnalysis' => $hasCvAnalysis,
+            'analysisStatus' => (string) ($analysis['status'] ?? ''),
+            'analysisId' => (string) ($analysis['id'] ?? ''),
             'cvFileName' => is_array($currentCv) ? (string) ($currentCv['display_name'] ?? '') : '',
             'currentCv' => $currentCv,
         ]);

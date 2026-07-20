@@ -522,6 +522,24 @@ class CareerTalentApiClient
         }
     }
 
+    public function activateGeneratedCv(UploadedFile $file, string $displayName, string $language, string $builderData, string $cvText): array
+    {
+        try {
+            $response = $this->request(120)
+                ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                ->post($this->baseUrl().'/api/v1/cv/documents/generated/activate', [
+                    'display_name' => $displayName,
+                    'language' => $language,
+                    'builder_data' => $builderData,
+                    'cv_text' => $cvText,
+                ]);
+
+            return $this->normalizeResponse($response);
+        } catch (ConnectionException $exception) {
+            return $this->connectionError($exception);
+        }
+    }
+
     public function archiveCurrentCv(string $documentId): array
     {
         return $this->patchJson('/api/v1/cv/documents/'.rawurlencode($documentId).'/archive', [], 15);
