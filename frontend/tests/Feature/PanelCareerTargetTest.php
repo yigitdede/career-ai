@@ -240,7 +240,10 @@ class PanelCareerTargetTest extends TestCase
             ->assertSee('20.07.2026 21:17')
             ->assertSee('data-roadmap-clear', false)
             ->assertSee('careerDataReset(', false)
-            ->assertSee('clearUrl', false)
+            ->assertSee((string) \Illuminate\Support\Js::from([
+                'clearUrl' => route('panel.cv.clear'),
+                'errorMessage' => __('panel.skill_radar.reset_failed'),
+            ]), false)
             ->assertSee('value="analysis"', false)
             ->assertSee('value="plan"', false)
             ->assertSee('value="all"', false);
