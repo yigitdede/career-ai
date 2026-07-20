@@ -111,6 +111,10 @@ return [
         'analysis_failed' => 'CV analysis could not complete. Check the PDF or try again shortly.',
         'analysis_status_error' => 'Could not retrieve analysis status.',
         'analysis_timeout' => 'CV analysis took longer than expected. Refresh the page to check again.',
+        'clear_data' => 'Clear career data',
+        'cv_source_title' => 'Route source',
+        'cv_source' => 'This route was created from the :name analysis.',
+        'cv_analyzed_at' => 'Analyzed: :date',
     ],
     'tasks' => [
         'title' => 'My Tasks',

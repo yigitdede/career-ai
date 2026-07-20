@@ -188,7 +188,9 @@
         </form>
     </section>
 
-    <section id="cv-yukle" x-show="tab === 'cv'" x-cloak x-data="profileCvUpload(@js(app()->getLocale()), '', @js(route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS_ID__'])), '', @js(route('panel.cv-history.analyze', ['documentId' => '__DOCUMENT_ID__'])), @js(route('panel.cv.analysis-stream', ['analysisId' => '__ANALYSIS_ID__'])))">
+    <section id="cv-yukle" x-show="tab === 'cv'" x-cloak
+        data-initial-history-analysis-ready="{{ ! empty($hasReadyHistoryAnalysis) ? 'true' : 'false' }}"
+        x-data="profileCvUpload(@js(app()->getLocale()), '', @js(route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS_ID__'])), '', @js(route('panel.cv-history.analyze', ['documentId' => '__DOCUMENT_ID__'])), @js(route('panel.cv.analysis-stream', ['analysisId' => '__ANALYSIS_ID__'])), @js(! empty($hasReadyHistoryAnalysis)))">
         <div class="panel-card p-6">
             <h2 class="font-semibold">{{ __('panel.profile.cv_history_title') }}</h2>
             <p class="panel-muted mt-1 text-sm">{{ __('panel.profile.cv_history_desc') }}</p>

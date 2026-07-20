@@ -268,7 +268,7 @@ export function panelCvRadar(labels, serverHasCv = false, serverFileName = '', c
     };
 }
 
-export function profileCvUpload(locale, analyzeUrl, statusUrl = '', redirectUrl = '', historyAnalyzeUrl = '', streamUrl = '') {
+export function profileCvUpload(locale, analyzeUrl, statusUrl = '', redirectUrl = '', historyAnalyzeUrl = '', streamUrl = '', initialHistoryAnalysisReady = false) {
     return {
         fileName: null,
         locale,
@@ -279,7 +279,7 @@ export function profileCvUpload(locale, analyzeUrl, statusUrl = '', redirectUrl 
         historyAnalyzeUrl,
         loading: false,
         historyLoadingId: null,
-        historyAnalysisReady: false,
+        historyAnalysisReady: initialHistoryAnalysisReady === true,
         dragOver: false,
         error: null,
 

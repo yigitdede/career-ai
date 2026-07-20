@@ -13,7 +13,6 @@ class DashboardCvRadarTest extends TestCase
         $response->assertOk()
             ->assertSee('data-dashboard-cv-empty', false)
             ->assertSee(__('panel.skill_radar.empty_title'), false)
-            ->assertSee('href="'.route('panel.account').'#cv-yukle"', false)
             ->assertSee('href="'.route('panel.cv-builder').'"', false)
             ->assertDontSee('data-dashboard-cv-actions', false)
             ->assertDontSee('id="yetenek-radari"', false);

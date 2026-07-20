@@ -41,10 +41,15 @@ class ProfileController extends PanelController
         $documentsResult = $api->cvDocuments();
         $documents = ($documentsResult['ok'] ?? false) && is_array($documentsResult['body'] ?? null) ? $documentsResult['body'] : [];
         $cvHistory = array_values(array_filter($documents, fn ($item) => is_array($item)));
+        $analysisResult = $api->currentCareerAnalysis();
+        $analysis = ($analysisResult['ok'] ?? false) && is_array($analysisResult['body'] ?? null) ? $analysisResult['body'] : [];
+        $hasReadyHistoryAnalysis = ($analysis['status'] ?? null) === 'ready'
+            && in_array(($analysis['source'] ?? null), ['archive_uploaded', 'archive_generated'], true);
 
         return $this->panelView('app.account', [
             'profile' => $profile,
             'cvHistory' => $cvHistory,
+            'hasReadyHistoryAnalysis' => $hasReadyHistoryAnalysis,
             'initialTab' => $initialTab,
             'profileError' => ($result['ok'] ?? false) ? null : $result['error'],
         ]);

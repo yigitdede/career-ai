@@ -111,6 +111,10 @@ return [
         'analysis_failed' => 'CV analizi tamamlanamadı. PDF geçerli mi kontrol et veya biraz sonra tekrar dene.',
         'analysis_status_error' => 'Analiz durumu alınamadı.',
         'analysis_timeout' => 'CV analizi beklenenden uzun sürdü. Sayfayı yenileyerek tekrar kontrol edin.',
+        'clear_data' => 'Kariyer verilerini temizle',
+        'cv_source_title' => 'Rota kaynağı',
+        'cv_source' => 'Bu rota :name analizine göre oluşturuldu.',
+        'cv_analyzed_at' => 'Analiz tarihi: :date',
     ],
     'tasks' => [
         'title' => 'Görevlerim',
