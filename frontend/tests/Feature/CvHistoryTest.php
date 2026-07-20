@@ -43,6 +43,7 @@ class CvHistoryTest extends TestCase
             ->assertDontSee('Tekrar indir')
             ->assertSee('Aç ve düzenle')->assertSee('Aktif analiz yap')
             ->assertSee('data-cv-delete-dialog', false)
+            ->assertSee('border-t border-slate-200 pt-5', false)
             ->assertSee('@click="deleteDialogOpen = true"', false)
             ->assertSee(__('panel.profile.cv_delete_title'))
             ->assertSee(__('panel.profile.cv_delete_action'))

@@ -208,7 +208,7 @@
             <p x-show="error" x-cloak class="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-200" x-text="error"></p>
 
             @if (! empty($cvHistory))
-                <ul class="mt-5 divide-y divide-slate-200 dark:divide-slate-800">
+                <ul class="mt-5 divide-y divide-slate-200 border-t border-slate-200 pt-5 dark:divide-slate-800 dark:border-slate-700">
                     @foreach ($cvHistory as $document)
                         <li class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
                             <div class="min-w-0">
