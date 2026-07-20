@@ -1,7 +1,7 @@
 <div :class="mode === 'preview' ? 'lg:col-span-2' : ''">
-    <div data-cv-preview-toolbar class="panel-card mb-4 flex min-h-[98px] flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div data-cv-preview-toolbar class="panel-card mb-4 flex min-h-[98px] flex-col gap-3 p-4">
         <p class="panel-muted text-sm" x-text="uiLabels[panelLocale].save_hint"></p>
-        <div class="flex flex-wrap gap-2">
+        <div data-cv-preview-actions class="flex flex-nowrap gap-2">
             <button type="button" @click="saveCv()"
                 class="hidden rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-60 lg:inline-flex"
                 :disabled="saveStatus === 'saving'"
