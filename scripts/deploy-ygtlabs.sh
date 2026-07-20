@@ -38,6 +38,7 @@ rsync -a --delete \
   --exclude 'backend/uploads' \
   --exclude '.superpowers' \
   "$SRC/" "$DEST/"
+git -C "$SRC" rev-parse HEAD > "$DEST/REVISION"
 
 cd "$DEST/frontend"
 
