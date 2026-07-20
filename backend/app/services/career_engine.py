@@ -50,13 +50,18 @@ def normalize_panel_locale(locale: str | None) -> str:
 def _has_complete_localizations(value: object) -> bool:
     return isinstance(value, dict) and all(isinstance(value.get(locale), dict) for locale in SUPPORTED_PANEL_LOCALES)
 
-# Language codes for system-level instructions
+# Language-aware system messages for _invoke
+# SystemMessage is the strongest directive layer for LLMs; language constraint MUST live here.
 _SYSTEM_MSG_TR = (
-    "Yalnızca verilen JSON Schema ile birebir uyumlu tek JSON nesnesi üret; "
+    "[DİL ZORUNLULUĞU] Tüm çıktıları YALNIZCA Türkçe yaz. "
+    "Soru metinleri, yönlendirmeler, geri bildirimler ve yetkinlik etiketleri dahil hiçbir alanda İngilizce kelime kullanma. "
+    "Ardından: Yalnızca verilen JSON Schema ile birebir uyumlu tek JSON nesnesi üret; "
     "markdown, kod bloğu veya açıklama ekleme."
 )
 _SYSTEM_MSG_EN = (
-    "Produce exactly one JSON object that strictly conforms to the provided JSON Schema. "
+    "[LANGUAGE REQUIREMENT] Write ALL output EXCLUSIVELY in English. "
+    "No Turkish words are allowed in any field including questions, guidance, feedback, or competency labels. "
+    "Then: Produce exactly one JSON object that strictly conforms to the provided JSON Schema. "
     "Do not add markdown, code fences, or any explanation."
 )
 

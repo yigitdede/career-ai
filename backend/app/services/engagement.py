@@ -88,11 +88,17 @@ def answer_chat(db: Session, user_id: int, message: str) -> CareerChatMessage:
 def start_interview(db: Session, user_id: int, language: str = INTERVIEW_LANG_TR) -> CareerInterview:
     lang = _normalize_interview_lang(language)
     context = career_context(db, user_id)
-    target_role = (
+
+    # target_role: DB'den gelen başlığı al, yoksa lang'a göre lokalize edilmiş fallback kullan
+    raw_target = (
         (context.get("selected_target") or {}).get("title")
         or context.get("current_role")
-        or ("General career interview" if lang == INTERVIEW_LANG_EN else "Genel kariyer görüşmesi")
     )
+    if lang == INTERVIEW_LANG_EN:
+        target_role = raw_target or "General career interview"
+    else:
+        # Hedef başlığı İngilizce bile olsa Prompt'a çevirisini yap
+        target_role = raw_target or "Genel kariyer görüşmesi"
 
     if lang == INTERVIEW_LANG_EN:
         rules = [
@@ -115,13 +121,15 @@ def start_interview(db: Session, user_id: int, language: str = INTERVIEW_LANG_TR
                 "'guidance' alanı MÜLAKATA GİREN ADAYA (yanıtlayan kişiye) kısa ve "
                 "teşvik edici bir ipucu olmalıdır. "
                 "'Düşün...', 'Göz önünde bulundur...' gibi ikinci tekil şahsla yaz. "
-                "HIÇBİR ZAMAN İK'ya/mülakatcıya yönelik iç yönerge yazma "
-                "(rön. 'Adayın iş birliği becerilerini ölçmek için...' gibi ifadeler kullanamazsın). "
+                "HİÇBİR ZAMAN İK'ya/mülakatcıya yönelik iç yönerge yazma "
+                "(rn. 'Adayın iş birliği becerilerini ölçmek için...' gibi ifadeler kullanamazsın). "
                 "80 kelimeyi geçme."
             ),
         ]
 
+    # Dil kilidi: purpose ve rules seçilen mülakat diline göre yazılıyor
     prompt = _build_prompt_with_lang({
+        "language_lock": f"INTERVIEW_LANGUAGE={lang.upper()} — Every field in your JSON output MUST be written in {'English' if lang == INTERVIEW_LANG_EN else 'Turkish'}. No exceptions.",
         "purpose": (
             "Generate tailored interview questions for the candidate's target role and CV gaps."
             if lang == INTERVIEW_LANG_EN
@@ -179,6 +187,7 @@ def evaluate_interview_answer(db: Session, user_id: int, interview: CareerInterv
         ]
 
     prompt = _build_prompt_with_lang({
+        "language_lock": f"INTERVIEW_LANGUAGE={lang.upper()} — Every field in your JSON output MUST be written in {'English' if lang == INTERVIEW_LANG_EN else 'Turkish'}. No exceptions.",
         "purpose": (
             "Evaluate the interview answer against the target role and the candidate's real CV context."
             if lang == INTERVIEW_LANG_EN
