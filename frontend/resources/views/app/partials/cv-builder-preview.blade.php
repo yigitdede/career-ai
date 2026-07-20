@@ -1,7 +1,7 @@
 <div :class="mode === 'preview' ? 'lg:col-span-2' : ''">
     <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-xs text-slate-500" x-text="uiLabels[panelLocale].preview_note"></p>
-        <div class="flex items-center gap-2">
+        <div data-preview-language-selector x-show="mode === 'preview'" x-cloak class="flex items-center gap-2">
             <span class="text-xs text-slate-500" x-text="uiLabels[panelLocale].preview_lang + ':'"></span>
             <button type="button" @click="previewLang = 'tr'"
                 :class="previewLang === 'tr' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'"

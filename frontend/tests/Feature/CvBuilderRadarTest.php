@@ -12,6 +12,8 @@ class CvBuilderRadarTest extends TestCase
         $response = $this->get(route('panel.cv-builder'));
         $response->assertOk()
             ->assertSee('data-cv-analysis-upload', false)
+            ->assertSee('data-preview-language-selector', false)
+            ->assertSee('x-show="mode === \'preview\'"', false)
             ->assertSee('profileCvUpload(', false)
             ->assertSee('panel-upload-zone', false)
             ->assertSeeInOrder(['id="harvard-preview"', 'Özgeçmiş Sürümlerim (CV Merkezi)'], false)
