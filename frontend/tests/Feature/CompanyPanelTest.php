@@ -197,6 +197,7 @@ class CompanyPanelTest extends TestCase
     public function test_company_panel_uses_shared_admin_shell_without_changing_its_visual_identity(): void
     {
         $css = file_get_contents(resource_path('css/app.css'));
+        $icons = file_get_contents(resource_path('js/marketing-motion.js'));
         $views = implode("\n", array_map(
             static fn (string $path): string => file_get_contents($path),
             [
@@ -221,6 +222,9 @@ class CompanyPanelTest extends TestCase
         $this->assertStringContainsString('panel-nav-link-active', $views);
         $this->assertStringNotContainsString('admin-shell', $views);
         $this->assertStringNotContainsString('admin-btn-', $views);
+        foreach (['ClipboardClock', 'Gauge', 'ListTodo', 'ScanSearch', 'UserPlus'] as $icon) {
+            $this->assertStringContainsString($icon, $icons);
+        }
     }
 
     public function test_candidate_cannot_open_company_panel(): void
