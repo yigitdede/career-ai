@@ -28,24 +28,26 @@
         'clearUrl' => route('panel.cv.clear'),
         'errorMessage' => __('panel.skill_radar.reset_failed'),
     ]) }})">
-        <header class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <header class="mb-8">
             <div>
                 <h1 class="mb-1 text-2xl font-bold">{{ __('panel.roadmap.title') }}</h1>
                 <p class="text-slate-600 dark:text-slate-400">{{ __('panel.roadmap.subtitle') }}</p>
             </div>
-            <button type="button" data-roadmap-clear @click="resetOpen = true"
-                class="inline-flex shrink-0 items-center justify-center rounded-xl border border-red-500/30 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-500/10 dark:text-red-300">
-                {{ __('panel.roadmap.clear_data') }}
-            </button>
         </header>
 
         @if (! empty($analysisCv))
             <div data-roadmap-analysis-cv class="panel-card mb-4 border-sky-500/30 bg-sky-500/10 p-4">
                 <p class="text-xs font-medium uppercase tracking-wide text-sky-700 dark:text-sky-300">{{ __('panel.roadmap.cv_source_title') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">{{ __('panel.roadmap.cv_source', ['name' => $analysisCv['name']]) }}</p>
-                @if (! empty($analysisCv['analyzed_at']))
-                    <p class="panel-muted mt-1 text-xs">{{ __('panel.roadmap.cv_analyzed_at', ['date' => $analysisCv['analyzed_at']]) }}</p>
-                @endif
+                <div data-roadmap-analysis-actions class="mt-1 flex flex-wrap items-center justify-between gap-2">
+                    @if (! empty($analysisCv['analyzed_at']))
+                        <p class="panel-muted text-xs">{{ __('panel.roadmap.cv_analyzed_at', ['date' => $analysisCv['analyzed_at']]) }}</p>
+                    @endif
+                    <button type="button" data-roadmap-clear @click.stop="resetOpen = true"
+                        class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+                        {{ __('panel.skill_radar.clear_cv') }}
+                    </button>
+                </div>
             </div>
         @endif
 

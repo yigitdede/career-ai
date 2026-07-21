@@ -239,6 +239,10 @@ class PanelCareerTargetTest extends TestCase
             ->assertSee('Fatma_Kesici.pdf')
             ->assertSee('20.07.2026 21:17')
             ->assertSee('data-roadmap-clear', false)
+            ->assertSee('data-roadmap-analysis-actions', false)
+            ->assertSee('class="font-medium text-emerald-600 hover:underline dark:text-emerald-400"', false)
+            ->assertSeeInOrder(['data-roadmap-analysis-cv', '20.07.2026 21:17', 'data-roadmap-clear'], false)
+            ->assertDontSee('inline-flex shrink-0 items-center justify-center rounded-xl border border-red-500/30', false)
             ->assertSee('careerDataReset(', false)
             ->assertSee((string) \Illuminate\Support\Js::from([
                 'clearUrl' => route('panel.cv.clear'),
