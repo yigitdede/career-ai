@@ -277,7 +277,7 @@ class MarketingPagesTest extends TestCase
         $response = $this->get('/panel/ilan-analizi');
 
         $response->assertStatus(200);
-        $response->assertSee('İş Fırsatları');
+        $response->assertSee('İlan Analizi');
         $response->assertSee('İş ilanını analiz et');
         $response->assertSee('CV için öneriler');
         $response->assertSee('Analiz et');
@@ -299,7 +299,7 @@ class MarketingPagesTest extends TestCase
         $response = $this->withSession(['panel_locale' => 'en'])->get('/panel/ilan-analizi');
 
         $response->assertStatus(200);
-        $response->assertSee('Job Opportunities');
+        $response->assertSee('Job Analysis');
         $response->assertSee('Analyze');
     }
 }
