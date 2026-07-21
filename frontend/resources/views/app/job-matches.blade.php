@@ -10,9 +10,14 @@
     'appliedUrl' => route('panel.job-matches.mark-applied', ['jobId' => '__JOB__']),
     'applyUrl' => route('panel.job-matches.apply', ['jobId' => '__JOB__']),
     'deleteUrl' => route('panel.job-matches.destroy', ['jobId' => '__JOB__']),
+    'cvStatusUrl' => route('panel.cv.analysis-status', ['analysisId' => '__ANALYSIS__']),
     'csrfToken' => csrf_token(), 'locale' => app()->getLocale() === 'en' ? 'en-GB' : 'tr-TR',
     'errors' => ['generic' => __('panel.job_matches.error_generic'), 'timeout' => __('panel.job_matches.error_timeout')],
-]) }})">
+    'labels' => [
+        'readiness' => __('panel.job_matches.readiness_note', ['score' => '__SCORE__']),
+        'cvFailed' => __('panel.job_matches.cv_failed'),
+    ],
+]) }}), {{ Js::from($latestAnalysis) }})">
     <header class="mb-8">
         <h1 class="mb-1 text-2xl font-bold">{{ __('panel.job_matches.title') }}</h1>
         <p class="text-slate-600 dark:text-slate-400">{{ __('panel.job_matches.subtitle') }}</p>
@@ -27,15 +32,21 @@
             <div class="flex items-center gap-3"><div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div><span class="text-xs text-slate-500">{{ __('panel.job_matches.or') }}</span><div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div></div>
             <label class="sr-only" for="job-text">{{ __('panel.job_matches.text_label') }}</label>
             <textarea id="job-text" x-model="jobText" rows="5" placeholder="{{ __('panel.job_matches.text_placeholder') }}" class="panel-input-block w-full resize-y" :disabled="loading"></textarea>
-            <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-60" :disabled="loading || (!jobUrl.trim() && jobText.trim().length < 40)">
+            <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="loading || !cvReady || (!jobUrl.trim() && jobText.trim().length < 40)">
                 <span x-show="!loading">{{ __('panel.job_matches.analyze_btn') }}</span><span x-show="loading" x-cloak>{{ __('panel.job_matches.analyzing_btn') }}</span>
             </button>
         </form>
         <p x-show="error" x-cloak x-text="error" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert"></p>
         <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/60">
             <p class="mb-2 font-medium text-slate-800 dark:text-slate-200">{{ __('panel.job_matches.profile_skills') }}</p>
-            <div class="flex flex-wrap gap-2">@forelse ($userSkills as $skill)<span class="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">{{ $skill }}</span>@empty<span class="text-xs text-slate-500">{{ __('panel.job_matches.cv_required') }}</span>@endforelse</div>
-            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">{{ __('panel.job_matches.readiness_note', ['score' => $readiness]) }}</p>
+            <div x-show="cvReady" class="flex flex-wrap gap-2">
+                <template x-for="skill in cv.skills" :key="skill.name"><span class="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" x-text="skill.name"></span></template>
+                <span x-show="!cv.skills.length" class="text-xs text-slate-500">{{ __('panel.job_matches.no_cv_skills') }}</span>
+            </div>
+            <p x-show="cv.status === 'queued' || cv.status === 'running'" x-cloak class="text-xs text-amber-600 dark:text-amber-400">{{ __('panel.job_matches.cv_processing') }}</p>
+            <p x-show="cv.status === 'failed'" x-cloak class="text-xs text-red-600 dark:text-red-400"><span x-text="cv.error_message || config.labels.cvFailed"></span> <a href="{{ route('panel.cv-builder') }}" class="font-medium underline">{{ __('panel.job_matches.cv_center') }}</a></p>
+            <p x-show="cv.status === 'missing'" class="text-xs text-slate-500">{{ __('panel.job_matches.cv_required') }} <a href="{{ route('panel.cv-builder') }}" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">{{ __('panel.job_matches.cv_center') }}</a></p>
+            <p x-show="cvReady" x-cloak class="mt-3 text-xs text-slate-500 dark:text-slate-400" x-text="config.labels.readiness.replace('__SCORE__', cv.readiness)"></p>
         </div>
     </section>
 
@@ -129,4 +140,3 @@
     </div>
 </div>
 @endsection
-

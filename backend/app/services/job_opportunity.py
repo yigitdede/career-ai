@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from copy import deepcopy
 from html import unescape
 from typing import Any
 from urllib.parse import urlparse
@@ -55,10 +56,20 @@ def analyze_job(db: Session, row: JobOpportunity, analysis: CareerAnalysis | Non
     if analysis is None:
         return _fail(db, row, "cv_required", "İlan analizi için hazır CV analizi gerekli")
 
+    snapshot = {
+        "job_id": row.id,
+        "source_url": row.source_url,
+        "job_text": row.job_text,
+        "cv_text": analysis.cv_text,
+        "current_role": analysis.current_role,
+        "profile": deepcopy(analysis.profile or {}),
+        "skills": deepcopy(analysis.skills or []),
+    }
     row.status = "running"
+    row.error_code = row.error_message = None
     db.commit()
     try:
-        listing = _listing_text(row.source_url, row.job_text)
+        listing = _listing_text(snapshot["source_url"], snapshot["job_text"])
         prompt = json.dumps({
             "purpose": "İş ilanını adayın güncel CV'siyle karşılaştır ve CV iyileştirme önerileri üret",
             "rules": [
@@ -73,10 +84,10 @@ def analyze_job(db: Session, row: JobOpportunity, analysis: CareerAnalysis | Non
                 "Her öneri ilanla ilişkili, somut ve Türkçe olmalıdır",
             ],
             "listing": listing[:16000],
-            "cv_text": (analysis.cv_text or "")[:16000],
-            "current_role": analysis.current_role,
-            "profile": analysis.profile,
-            "skills": analysis.skills or [],
+            "cv_text": (snapshot["cv_text"] or "")[:16000],
+            "current_role": snapshot["current_role"],
+            "profile": snapshot["profile"],
+            "skills": snapshot["skills"],
         }, ensure_ascii=False)
         output = _invoke(prompt, JobOpportunityAI)
         data = output.model_dump(mode="json")
@@ -86,24 +97,30 @@ def analyze_job(db: Session, row: JobOpportunity, analysis: CareerAnalysis | Non
             if item["action"] == "develop":
                 item["safe_to_apply"] = False
             suggestions.append(item)
-        row.status = "ready"
-        row.title = output.title
-        row.company = output.company
-        row.source = output.source or (urlparse(row.source_url).hostname if row.source_url else "İlan metni")
-        row.required_skills = data["required_skills"]
-        row.matched_skills = data["matched_skills"]
-        row.missing_skills = data["missing_skills"]
-        row.match_score = output.match_score
-        row.cv_suggestions = suggestions
-        row.error_code = row.error_message = None
     except JobListingError as exc:
-        return _fail(db, row, "invalid_listing", str(exc))
+        return _fail_by_id(db, snapshot["job_id"], "invalid_listing", str(exc))
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
         code = "ai_unavailable" if isinstance(exc, AIUnavailableError) else ("ai_invalid_output" if isinstance(exc, AIOutputError) else "ai_provider_error")
-        return _fail(db, row, code, str(exc))
-    db.commit()
-    db.refresh(row)
-    return row
+        return _fail_by_id(db, snapshot["job_id"], code, str(exc))
+
+    with db.begin():
+        persisted = db.get(JobOpportunity, snapshot["job_id"])
+        if persisted is None:
+            raise RuntimeError("İlan analizi kaydı bulunamadı")
+        persisted.status = "ready"
+        persisted.title = output.title
+        persisted.company = output.company
+        persisted.source = output.source or (
+            urlparse(snapshot["source_url"]).hostname if snapshot["source_url"] else "İlan metni"
+        )
+        persisted.required_skills = data["required_skills"]
+        persisted.matched_skills = data["matched_skills"]
+        persisted.missing_skills = data["missing_skills"]
+        persisted.match_score = output.match_score
+        persisted.cv_suggestions = suggestions
+        persisted.error_code = persisted.error_message = None
+    db.refresh(persisted)
+    return persisted
 
 
 def apply_suggestions(db: Session, row: JobOpportunity, suggestion_ids: list[str]) -> JobOpportunity:
@@ -243,6 +260,10 @@ def serialize_job(row: JobOpportunity) -> dict[str, Any]:
 
 
 def _listing_text(source_url: str | None, job_text: str | None) -> str:
+    pasted_text = (job_text or "").strip()
+    if len(pasted_text) >= 40:
+        return pasted_text
+
     pieces = []
     if source_url:
         parsed = urlparse(source_url)
@@ -262,8 +283,8 @@ def _listing_text(source_url: str | None, job_text: str | None) -> str:
             raise
         except Exception as exc:
             raise JobListingError("İlan URL'si okunamadı; ilan metnini yapıştırın") from exc
-    if job_text:
-        pieces.append(job_text.strip())
+    if pasted_text:
+        pieces.append(pasted_text)
     combined = "\n\n".join(item for item in pieces if item)
     if len(combined) < 40:
         raise JobListingError("Analiz için yeterli ilan metni bulunamadı")
@@ -273,6 +294,16 @@ def _listing_text(source_url: str | None, job_text: str | None) -> str:
 def _fail(db: Session, row: JobOpportunity, code: str, message: str) -> JobOpportunity:
     row.status, row.error_code, row.error_message = "failed", code, message[:500]
     db.commit(); db.refresh(row)
+    return row
+
+
+def _fail_by_id(db: Session, job_id: str, code: str, message: str) -> JobOpportunity:
+    with db.begin():
+        row = db.get(JobOpportunity, job_id)
+        if row is None:
+            raise RuntimeError("İlan analizi kaydı bulunamadı")
+        row.status, row.error_code, row.error_message = "failed", code, message[:500]
+    db.refresh(row)
     return row
 
 

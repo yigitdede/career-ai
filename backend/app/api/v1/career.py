@@ -106,8 +106,8 @@ def create_job_analysis(request: JobAnalyzeRequest, db: DB, user: CurrentUser):
 
 
 @router.get("/jobs")
-def saved_jobs(db: DB, user: CurrentUser):
-    rows = db.scalars(select(JobOpportunity).where(JobOpportunity.user_id == user.id, JobOpportunity.saved.is_(True)).order_by(JobOpportunity.created_at.desc())).all()
+def list_jobs(db: DB, user: CurrentUser):
+    rows = db.scalars(select(JobOpportunity).where(JobOpportunity.user_id == user.id).order_by(JobOpportunity.created_at.desc())).all()
     applied_job_ids = set(db.scalars(select(JobApplication.job_id).where(JobApplication.user_id == user.id, JobApplication.job_id.is_not(None))).all())
     return [serialize_job(row) | {"application_created": row.id in applied_job_ids} for row in rows]
 
@@ -261,6 +261,24 @@ def current_analysis(db: DB, user: CurrentUser):
         .order_by(CareerAnalysis.created_at.desc())
     )
     return serialize_analysis(row, _localized_locale(db, user, include_targets=False)) if row else None
+
+
+@router.get("/analysis/latest", response_model=CareerAnalysisResponse | None)
+def latest_analysis(db: DB, user: CurrentUser):
+    row = db.scalar(
+        select(CareerAnalysis)
+        .where(CareerAnalysis.user_id == user.id)
+        .order_by(CareerAnalysis.created_at.desc())
+    )
+    if row is None:
+        return None
+    locale = _localized_locale(
+        db,
+        user,
+        analysis_id=row.id,
+        include_targets=False,
+    ) if row.status == "ready" else user.preferred_locale
+    return serialize_analysis(row, locale)
 
 
 @router.get("/analysis/{analysis_id}", response_model=CareerAnalysisResponse)

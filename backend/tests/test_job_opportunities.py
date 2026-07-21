@@ -1,8 +1,13 @@
+from datetime import datetime, timezone
+
+import pytest
+
 from app.core.database import get_db
 from app.main import app
 from app.models.career_engine import CareerAnalysis, JobOpportunity
 from app.schemas.career import CvBuilderDraftAI, CvRewriteAI, JobCvSuggestionAI, JobOpportunityAI
 from app.services import job_opportunity as service
+from app.tasks import career as career_tasks
 
 
 def register(client, email="jobs@example.com"):
@@ -51,7 +56,9 @@ def test_job_analysis_requires_current_cv_and_queues_ai(client, monkeypatch):
     assert queued.status_code == 202
     assert queued.json()["status"] == "queued"
     assert queued.json()["saved"] is False
-    assert client.get("/api/v1/career/jobs", headers=auth).json() == []
+    listed = client.get("/api/v1/career/jobs", headers=auth).json()
+    assert [row["id"] for row in listed] == [queued.json()["id"]]
+    assert listed[0]["saved"] is False
 
 
 def test_saved_jobs_are_user_scoped_and_can_be_deleted(client):
@@ -87,6 +94,144 @@ def test_ai_analysis_keeps_skill_contract_and_marks_development_unsafe(client, m
     assert result.cv_suggestions[1]["safe_to_apply"] is False
     assert all(item["id"] for item in result.cv_suggestions)
     db.close()
+
+
+def test_job_analysis_runs_listing_and_ai_without_an_active_transaction(client, monkeypatch):
+    register(client)
+    db = db_session(); cv = ready_cv(); db.add(cv); db.commit()
+    row = service.create_job(db, 1, None, "SQL, Python ve Power BI bilen Data Analyst arıyoruz. Güçlü raporlama bekleniyor.")
+
+    def fake_listing(source_url, job_text):
+        assert not db.in_transaction()
+        assert source_url is None
+        return job_text
+
+    def fake_invoke(_prompt, _schema):
+        assert not db.in_transaction()
+        return job_ai()
+
+    monkeypatch.setattr(service, "_listing_text", fake_listing)
+    monkeypatch.setattr(service, "_invoke", fake_invoke)
+
+    assert service.analyze_job(db, row, cv).status == "ready"
+    db.close()
+
+
+def test_valid_pasted_job_text_bypasses_unreadable_url(client, monkeypatch):
+    register(client)
+    db = db_session(); cv = ready_cv(); db.add(cv); db.commit()
+    pasted_text = "SQL, Python ve Power BI bilen Data Analyst arıyoruz. Güçlü raporlama bekleniyor."
+    row = service.create_job(db, 1, "https://example.com/redirect", pasted_text)
+
+    class UnexpectedHttpClient:
+        def __init__(self, **_kwargs):
+            raise AssertionError("valid pasted text must not fetch the URL")
+
+    monkeypatch.setattr(service.httpx, "Client", UnexpectedHttpClient)
+    monkeypatch.setattr(service, "_invoke", lambda _prompt, _schema: job_ai())
+
+    result = service.analyze_job(db, row, cv)
+    assert result.status == "ready"
+    assert result.error_code is None
+    db.close()
+
+
+def test_url_only_unreadable_listing_has_safe_failure(client, monkeypatch):
+    register(client)
+    db = db_session(); cv = ready_cv(); db.add(cv); db.commit()
+    row = service.create_job(db, 1, "https://example.com/unreadable", None)
+
+    class BrokenHttpClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def get(self, *_args, **_kwargs):
+            raise OSError("internal transport detail")
+
+    monkeypatch.setattr(service, "_public_host", lambda _hostname: True)
+    monkeypatch.setattr(service.httpx, "Client", BrokenHttpClient)
+
+    result = service.analyze_job(db, row, cv)
+    assert result.status == "failed"
+    assert result.error_code == "invalid_listing"
+    assert result.error_message == "İlan URL'si okunamadı; ilan metnini yapıştırın"
+    assert "internal transport detail" not in result.error_message
+    db.close()
+
+
+def test_unexpected_job_task_failure_is_persisted_and_reraised(client, monkeypatch):
+    register(client)
+    task_db = db_session()
+    task_db.add(JobOpportunity(id="unexpected-job", user_id=1, status="running", job_text="Yeterince uzun ilan metni"))
+    task_db.commit()
+    monkeypatch.setattr(career_tasks, "SessionLocal", lambda: task_db)
+    monkeypatch.setattr(career_tasks, "analyze_job", lambda *_args: (_ for _ in ()).throw(RuntimeError("provider exploded")))
+
+    with pytest.raises(RuntimeError, match="provider exploded"):
+        career_tasks.analyze_job_task.run("unexpected-job")
+
+    verification_db = db_session()
+    failed = verification_db.get(JobOpportunity, "unexpected-job")
+    assert failed.status == "failed"
+    assert failed.error_code == "analysis_failed"
+    assert failed.error_message == "İlan analizi beklenmeyen bir hata nedeniyle tamamlanamadı. Lütfen tekrar deneyin."
+    verification_db.close()
+
+
+def test_latest_analysis_returns_any_status_and_is_user_scoped(client, monkeypatch):
+    register(client); auth = headers(client)
+    register(client, "latest-other@example.com"); other_auth = headers(client, "latest-other@example.com")
+    db = db_session()
+    db.add_all([
+        CareerAnalysis(
+            id="older-ready", user_id=1, status="ready", source="text", current_role="Raw older",
+            cv_text="SQL", skills=[], radar=[], created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
+        CareerAnalysis(
+            id="latest-pending", user_id=1, status="running", source="text", current_role="Raw pending",
+            cv_text="SQL", skills=[], radar=[], created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        ),
+        CareerAnalysis(
+            id="other-latest", user_id=2, status="ready", source="text", current_role="Other user",
+            cv_text="Python", skills=[], radar=[], created_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        ),
+    ])
+    db.commit(); db.close()
+
+    locale_calls = []
+    monkeypatch.setattr(
+        "app.api.v1.career._localized_locale",
+        lambda *_args, **_kwargs: locale_calls.append(_kwargs) or "en",
+    )
+
+    pending = client.get("/api/v1/career/analysis/latest", headers=auth)
+    assert pending.status_code == 200
+    assert pending.json()["id"] == "latest-pending"
+    assert pending.json()["current_role"] == "Raw pending"
+    assert locale_calls == []
+    assert client.get("/api/v1/career/analysis/latest", headers=other_auth).json()["id"] == "other-latest"
+    assert len(locale_calls) == 1
+
+    db = db_session()
+    ready = db.get(CareerAnalysis, "latest-pending")
+    ready.status = "ready"
+    ready.localizations = {
+        "en": {
+            "current_role": "Localized latest",
+            "profile": {}, "skills": [], "radar": [], "career_ladder": [],
+        }
+    }
+    db.commit(); db.close()
+
+    localized = client.get("/api/v1/career/analysis/latest", headers=auth)
+    assert localized.json()["current_role"] == "Localized latest"
+    assert len(locale_calls) == 2
 
 
 def test_apply_rejects_unsafe_and_reanalyzes_new_cv(client, monkeypatch):
