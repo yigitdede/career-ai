@@ -6,6 +6,7 @@ function normalizeJob(job) {
         missing_skills: Array.isArray(job.missing_skills) ? job.missing_skills : [],
         cv_suggestions: Array.isArray(job.cv_suggestions) ? job.cv_suggestions : [],
         apply_status: job.apply_status || null, result_analysis_id: job.result_analysis_id || null,
+        source_analysis_id: job.source_analysis_id || null, source_cv_file_name: job.source_cv_file_name || '',
         error_message: job.error_message || '', created_at: job.created_at || new Date().toISOString(), selected: [], application_created: Boolean(job.application_created),
     };
 }
@@ -33,7 +34,6 @@ export function panelJobMatches(seedJobs, config, seedAnalysis = null) {
         init() {
             if (this.cv.status === 'queued' || this.cv.status === 'running') {
                 this.pollCv().catch(error => {
-                    this.cv.status = 'failed';
                     this.cv.error_message = error.message;
                 });
             }

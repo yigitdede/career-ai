@@ -6,7 +6,7 @@ import json
 import re
 from copy import deepcopy
 from html import unescape
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -29,6 +29,14 @@ class JobCvVersionError(ValueError):
     """The requested CV-version draft cannot be created."""
 
 
+class JobQueueUnavailableError(RuntimeError):
+    """The committed job row could not be published to the worker queue."""
+
+
+QUEUE_UNAVAILABLE_CODE = "queue_unavailable"
+QUEUE_UNAVAILABLE_MESSAGE = "İşlem kuyruğa alınamadı. Lütfen tekrar deneyin."
+
+
 def current_analysis(db: Session, user_id: int) -> CareerAnalysis | None:
     return db.scalar(
         select(CareerAnalysis)
@@ -37,13 +45,39 @@ def current_analysis(db: Session, user_id: int) -> CareerAnalysis | None:
     )
 
 
-def create_job(db: Session, user_id: int, source_url: str | None, job_text: str | None) -> JobOpportunity:
+def latest_analysis(db: Session, user_id: int) -> CareerAnalysis | None:
+    return db.scalar(
+        select(CareerAnalysis)
+        .where(CareerAnalysis.user_id == user_id)
+        .order_by(CareerAnalysis.created_at.desc())
+    )
+
+
+def cv_snapshot(analysis: CareerAnalysis) -> dict[str, Any]:
+    """Create the JSON-safe, bounded CV state captured by the analyze click."""
+    return {
+        "cv_text": (analysis.cv_text or "")[:16000],
+        "current_role": analysis.current_role,
+        "profile": deepcopy(analysis.profile or {}),
+        "skills": deepcopy(analysis.skills or []),
+    }
+
+
+def create_job(
+    db: Session,
+    user_id: int,
+    source_url: str | None,
+    job_text: str | None,
+    analysis: CareerAnalysis | None = None,
+) -> JobOpportunity:
     row = JobOpportunity(
         id=str(uuid4()),
         user_id=user_id,
         status="queued",
         source_url=(source_url or "").strip() or None,
         job_text=(job_text or "").strip() or None,
+        source_analysis_id=analysis.id if analysis is not None else None,
+        source_cv_file_name=analysis.file_name if analysis is not None else None,
     )
     db.add(row)
     db.commit()
@@ -51,20 +85,45 @@ def create_job(db: Session, user_id: int, source_url: str | None, job_text: str 
     return row
 
 
-def analyze_job(db: Session, row: JobOpportunity, analysis: CareerAnalysis | None = None) -> JobOpportunity:
-    analysis = analysis or current_analysis(db, row.user_id)
-    if analysis is None:
-        return _fail(db, row, "cv_required", "İlan analizi için hazır CV analizi gerekli")
+def dispatch_job_analysis(
+    db: Session,
+    row: JobOpportunity,
+    snapshot: dict[str, Any],
+    publish: Callable[[str, dict[str, Any]], Any],
+) -> None:
+    try:
+        publish(row.id, snapshot)
+    except Exception as exc:
+        db.rollback()
+        persisted = db.get(JobOpportunity, row.id)
+        if persisted is not None:
+            persisted.status = "failed"
+            persisted.error_code = QUEUE_UNAVAILABLE_CODE
+            persisted.error_message = QUEUE_UNAVAILABLE_MESSAGE
+            db.commit()
+        raise JobQueueUnavailableError(QUEUE_UNAVAILABLE_MESSAGE) from exc
 
-    snapshot = {
-        "job_id": row.id,
-        "source_url": row.source_url,
-        "job_text": row.job_text,
-        "cv_text": analysis.cv_text,
-        "current_role": analysis.current_role,
-        "profile": deepcopy(analysis.profile or {}),
-        "skills": deepcopy(analysis.skills or []),
-    }
+
+def analyze_job(
+    db: Session,
+    row: JobOpportunity,
+    analysis: CareerAnalysis | None = None,
+    snapshot: dict[str, Any] | None = None,
+) -> JobOpportunity:
+    if snapshot is None:
+        analysis = analysis or current_analysis(db, row.user_id)
+        if analysis is None:
+            return _fail(db, row, "cv_required", "İlan analizi için hazır CV analizi gerekli")
+        snapshot = cv_snapshot(analysis)
+    else:
+        snapshot = {
+            "cv_text": str(snapshot.get("cv_text") or "")[:16000],
+            "current_role": snapshot.get("current_role"),
+            "profile": deepcopy(snapshot.get("profile") if isinstance(snapshot.get("profile"), dict) else {}),
+            "skills": deepcopy(snapshot.get("skills") if isinstance(snapshot.get("skills"), list) else []),
+        }
+
+    snapshot.update({"job_id": row.id, "source_url": row.source_url, "job_text": row.job_text})
     row.status = "running"
     row.error_code = row.error_message = None
     db.commit()
@@ -254,7 +313,9 @@ def serialize_job(row: JobOpportunity) -> dict[str, Any]:
         "missing_skills": row.missing_skills or [], "match_score": row.match_score,
         "cv_suggestions": row.cv_suggestions or [], "saved": bool(row.saved),
         "apply_status": row.apply_status, "applied_suggestion_ids": row.applied_suggestion_ids or [],
-        "result_analysis_id": row.result_analysis_id, "error_code": row.error_code,
+        "result_analysis_id": row.result_analysis_id,
+        "source_analysis_id": row.source_analysis_id, "source_cv_file_name": row.source_cv_file_name,
+        "error_code": row.error_code,
         "error_message": row.error_message, "created_at": row.created_at,
     }
 
@@ -273,7 +334,7 @@ def _listing_text(source_url: str | None, job_text: str | None) -> str:
             with httpx.Client(follow_redirects=False, timeout=8.0) as client:
                 response = client.get(source_url, headers={"User-Agent": "CareerTalentJobAnalyzer/1.0"})
             if 300 <= response.status_code < 400:
-                raise JobListingError("Yönlendiren ilan URL'leri desteklenmiyor")
+                raise JobListingError("İlan URL'si yönlendiriliyor; ilan metnini yapıştırın")
             response.raise_for_status()
             if len(response.content) > 1_000_000:
                 raise JobListingError("İlan sayfası çok büyük")

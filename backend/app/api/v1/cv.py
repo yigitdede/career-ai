@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.models.career_engine import CareerAnalysis
 from app.models.user import User
 from app.models.engagement import CvDocument, CandidateCvVersion
 from app.schemas.career import CVQueueResponse
@@ -31,6 +32,10 @@ router = APIRouter()
 DB = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 _MAX_BYTES = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+_QUEUE_UNAVAILABLE_DETAIL = {
+    "code": "queue_unavailable",
+    "message": "İşlem kuyruğa alınamadı. Lütfen tekrar deneyin.",
+}
 
 
 def _cv_path(user_id: int, document_id: str) -> Path:
@@ -80,8 +85,22 @@ def _serialize_document(row: CvDocument, include_builder: bool = False) -> dict:
 def _queue(db: DB, user: CurrentUser, cv_text: str, source: str, file_name: str, cv_document_id: str | None = None) -> CVQueueResponse:
     archive_active_interviews(db, user.id)
     row = create_analysis(db, user.id, cv_text, source, file_name, cv_document_id)
-    analyze_cv_task.delay(row.id)
+    _dispatch_analysis(db, row)
     return {"analysis_id": row.id, "status": "queued"}
+
+
+def _dispatch_analysis(db: Session, row: CareerAnalysis) -> None:
+    try:
+        analyze_cv_task.delay(row.id)
+    except Exception as exc:
+        db.rollback()
+        persisted = db.get(CareerAnalysis, row.id)
+        if persisted is not None:
+            persisted.status = "failed"
+            persisted.error_code = _QUEUE_UNAVAILABLE_DETAIL["code"]
+            persisted.error_message = _QUEUE_UNAVAILABLE_DETAIL["message"]
+            db.commit()
+        raise HTTPException(status_code=503, detail=_QUEUE_UNAVAILABLE_DETAIL) from exc
 
 
 def _snapshot_text(value: object) -> str:
@@ -248,7 +267,7 @@ async def archive_and_analyze_generated_cv(
         raise
 
     remove_career_evidence_files(user.id, evidence_files)
-    analyze_cv_task.delay(analysis.id)
+    _dispatch_analysis(db, analysis)
     return {
         "analysis_id": analysis.id,
         "status": analysis.status,

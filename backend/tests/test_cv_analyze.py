@@ -278,6 +278,67 @@ def test_generated_cv_archive_can_start_owner_scoped_active_analysis(client, mon
     assert client.get(f"/api/v1/cv/documents/{document_id}", headers=headers).status_code == 404
 
 
+def test_archived_document_publish_failure_marks_analysis_failed(client, monkeypatch, tmp_path):
+    client.post("/api/v1/auth/register", json={"full_name": "Archive Queue", "email": "archive-queue@example.com", "password": "GucluParola123!"})
+    token = client.post("/api/v1/auth/login", data={"username": "archive-queue@example.com", "password": "GucluParola123!"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr("app.api.v1.cv.settings.UPLOAD_DIR", str(tmp_path))
+    created = client.post(
+        "/api/v1/cv/documents/generated",
+        headers=headers,
+        files={"file": ("archive.pdf", BytesIO(_MINIMAL_PDF), "application/pdf")},
+        data={
+            "display_name": "Archive CV.pdf",
+            "language": "tr",
+            "builder_data": '{"tr":{"summary":"SQL Python Excel ile veri analizi ve raporlama deneyimi"}}',
+        },
+    )
+    assert created.status_code == 201
+    monkeypatch.setattr(
+        "app.api.v1.cv.analyze_cv_task.delay",
+        lambda _analysis_id: (_ for _ in ()).throw(RuntimeError("broker offline")),
+    )
+
+    response = client.post(f"/api/v1/cv/documents/{created.json()['id']}/analyze", headers=headers)
+
+    assert response.status_code == 503
+    db = next(app.dependency_overrides[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    row = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == 1))
+    assert row.status == "failed"
+    assert row.error_code == "queue_unavailable"
+    db.close()
+
+
+def test_generated_activation_publish_failure_marks_analysis_failed(client, monkeypatch, tmp_path):
+    client.post("/api/v1/auth/register", json={"full_name": "Builder Queue", "email": "builder-queue@example.com", "password": "GucluParola123!"})
+    token = client.post("/api/v1/auth/login", data={"username": "builder-queue@example.com", "password": "GucluParola123!"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr("app.api.v1.cv.settings.UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "app.api.v1.cv.analyze_cv_task.delay",
+        lambda _analysis_id: (_ for _ in ()).throw(RuntimeError("broker offline")),
+    )
+
+    response = client.post(
+        "/api/v1/cv/documents/generated/activate",
+        headers=headers,
+        files={"file": ("builder.pdf", BytesIO(_MINIMAL_PDF), "application/pdf")},
+        data={
+            "display_name": "Builder Queue CV.pdf",
+            "language": "tr",
+            "builder_data": '{"tr":{"summary":"SQL Python Excel ile veri analizi deneyimi"}}',
+            "cv_text": "Builder Queue SQL Python Excel ile veri analizi ve raporlama deneyimi",
+        },
+    )
+
+    assert response.status_code == 503
+    db = next(app.dependency_overrides[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    row = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == 1))
+    assert row.status == "failed"
+    assert row.error_code == "queue_unavailable"
+    db.close()
+
+
 def test_builder_save_atomically_replaces_active_cv_and_career_state(client, monkeypatch, tmp_path):
     client.post("/api/v1/auth/register", json={"full_name": "Builder Owner", "email": "builder@example.com", "password": "GucluParola123!"})
     token = client.post("/api/v1/auth/login", data={"username": "builder@example.com", "password": "GucluParola123!"}).json()["access_token"]

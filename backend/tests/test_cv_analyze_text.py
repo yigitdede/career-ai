@@ -1,5 +1,10 @@
 """Asenkron CV metin alımı kontratı."""
 
+from sqlalchemy import select
+
+from app.core.database import get_db
+from app.main import app
+from app.models.career_engine import CareerAnalysis
 from app.schemas.engagement import InterviewQuestionAI, InterviewQuestionsAI
 
 
@@ -18,6 +23,33 @@ def test_analyze_text_endpoint(client, monkeypatch):
     body = response.json()
     assert body["analysis_id"]
     assert body["status"] == "queued"
+
+
+def test_analyze_text_publish_failure_marks_analysis_failed(client, monkeypatch):
+    client.post("/api/v1/auth/register", json={"full_name": "Queue Owner", "email": "queue@example.com", "password": "GucluParola123!"})
+    token = client.post("/api/v1/auth/login", data={"username": "queue@example.com", "password": "GucluParola123!"}).json()["access_token"]
+    monkeypatch.setattr(
+        "app.api.v1.cv.analyze_cv_task.delay",
+        lambda _analysis_id: (_ for _ in ()).throw(RuntimeError("broker offline")),
+    )
+
+    response = client.post(
+        "/api/v1/cv/analyze-text",
+        json={"cv_text": "Data Analyst SQL Python Excel ile üç yıllık analiz ve raporlama deneyimi", "file_name": "queue.json"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": "queue_unavailable",
+        "message": "İşlem kuyruğa alınamadı. Lütfen tekrar deneyin.",
+    }
+    db = next(app.dependency_overrides[get_db]())
+    row = db.scalar(select(CareerAnalysis).where(CareerAnalysis.user_id == 1))
+    assert row.status == "failed"
+    assert row.error_code == "queue_unavailable"
+    assert row.error_message == "İşlem kuyruğa alınamadı. Lütfen tekrar deneyin."
+    db.close()
 
 
 def test_contact_only_builder_text_is_not_sent_to_ai(client, monkeypatch):

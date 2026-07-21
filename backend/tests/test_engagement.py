@@ -117,16 +117,19 @@ def test_chat_turns_explicit_job_cv_request_into_approved_action_preview(client,
             action="create_cv_for_job",
         ),
     )
-    monkeypatch.setattr("app.tasks.career.analyze_job_task.delay", lambda job_id: queued.append(job_id))
+    monkeypatch.setattr("app.tasks.career.analyze_job_task.delay", lambda job_id, snapshot: queued.append((job_id, snapshot)))
 
     message = "CV'mi bu ilana göre oluştur: Data Analyst rolü için ileri SQL, Python, dashboard hazırlama ve paydaş iletişimi deneyimi arıyoruz."
     response = client.post("/api/v1/career/chat", headers=auth, json={"message": message})
 
     assert response.status_code == 201
     action = response.json()["meta"]["action"]
-    assert action == {"type": "job_cv_draft", "job_id": queued[0], "status": "queued"}
-    db = db_session(); job = db.get(JobOpportunity, queued[0])
+    assert action == {"type": "job_cv_draft", "job_id": queued[0][0], "status": "queued"}
+    assert queued[0][1]["cv_text"] == "SQL ve Python ile veri analizi projeleri geliştirdim."
+    db = db_session(); job = db.get(JobOpportunity, queued[0][0])
     assert job is not None and job.user_id == user_id and job.job_text == message
+    assert job.source_analysis_id == "chat-active-cv"
+    assert job.source_cv_file_name == "aktif-cv.pdf"
     db.close()
 
 

@@ -17,7 +17,28 @@ def test_migration_graph_has_one_unambiguous_head() -> None:
 
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["20260721_17"]
+    assert script.get_heads() == ["20260721_18"]
+
+
+def test_job_analysis_provenance_migration_adds_nullable_snapshot_columns(tmp_path) -> None:
+    backend_dir = Path(__file__).resolve().parents[1]
+    path = backend_dir / "migrations/versions/20260721_18_job_analysis_provenance.py"
+    spec = spec_from_file_location("job_analysis_provenance_migration", path)
+    assert spec is not None and spec.loader is not None
+    migration = module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'job-analysis-provenance.sqlite'}")
+
+    with engine.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE job_opportunities (id VARCHAR(36) PRIMARY KEY)")
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+
+        columns = {item["name"]: item for item in sa.inspect(connection).get_columns("job_opportunities")}
+        assert columns["source_analysis_id"]["nullable"] is True
+        assert columns["source_analysis_id"]["type"].length == 36
+        assert columns["source_cv_file_name"]["nullable"] is True
+        assert columns["source_cv_file_name"]["type"].length == 255
 
 
 def test_company_permission_migration_backfills_existing_role_behavior() -> None:

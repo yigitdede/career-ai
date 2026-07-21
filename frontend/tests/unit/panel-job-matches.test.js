@@ -3,6 +3,21 @@ import { describe, it } from 'node:test';
 import { panelJobMatches } from '../../resources/js/panel-job-matches.js';
 
 describe('panelJobMatches', () => {
+    it('keeps failed analysis details and the exact CV provenance after a reload', () => {
+        const state = panelJobMatches([{
+            id: 'failed-job',
+            status: 'failed',
+            error_message: 'İlan URL\'si okunamadı',
+            source_analysis_id: 'analysis-1',
+            source_cv_file_name: 'aday-cv.pdf',
+        }], {}, { id: 'analysis-2', status: 'ready' });
+
+        assert.equal(state.jobs[0].status, 'failed');
+        assert.equal(state.jobs[0].error_message, 'İlan URL\'si okunamadı');
+        assert.equal(state.jobs[0].source_analysis_id, 'analysis-1');
+        assert.equal(state.jobs[0].source_cv_file_name, 'aday-cv.pdf');
+    });
+
     it('queues pasted listing text and keeps the completed result in the same page state', async () => {
         const listing = 'SQL, Python ve Power BI bilen bir veri analisti arıyoruz. Raporlama deneyimi zorunludur.';
         const state = panelJobMatches([], {
@@ -76,6 +91,21 @@ describe('panelJobMatches', () => {
         assert.equal(state.cvReady, true);
         assert.deepEqual(state.cv.skills, [{ name: 'SQL', score: 80 }]);
         assert.equal(state.cv.readiness, 80);
+    });
+
+    it('keeps a pending CV non-terminal when live status polling has a client error', async () => {
+        const state = panelJobMatches([], {
+            errors: { generic: 'error', timeout: 'timeout' },
+        }, { id: 'cv-1', status: 'running', skills: [], radar: [] });
+        state.pollCv = async () => { throw new Error('network unavailable'); };
+
+        state.init();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        assert.equal(state.cv.status, 'running');
+        assert.equal(state.cv.error_message, 'network unavailable');
+        assert.equal(state.cvReady, false);
     });
 
     it('resumes queued analysis and apply polling after a page reload', () => {

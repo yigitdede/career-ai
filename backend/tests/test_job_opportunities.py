@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+import json
 
 import pytest
+from sqlalchemy import select
 
 from app.core.database import get_db
 from app.main import app
@@ -46,12 +48,20 @@ def job_ai():
 def test_job_analysis_requires_current_cv_and_queues_ai(client, monkeypatch):
     register(client)
     auth = headers(client)
-    monkeypatch.setattr("app.api.v1.career.analyze_job_task.delay", lambda *_: None)
+    dispatched = []
+    monkeypatch.setattr("app.api.v1.career.analyze_job_task.delay", lambda *args: dispatched.append(args))
 
     missing_cv = client.post("/api/v1/career/jobs/analyze", json={"job_text": "Data analyst rolü için SQL ve Python bilen ekip arkadaşı arıyoruz."}, headers=auth)
     assert missing_cv.status_code == 409
 
-    db = db_session(); db.add(ready_cv()); db.commit(); db.close()
+    cv = ready_cv()
+    cv.file_name = "click-time.pdf"
+    cv.current_role = "Click-time Analyst"
+    cv.profile = {"summary": "click-time profile"}
+    cv.cv_text = "click-time:" + ("x" * 17000)
+    source_id = cv.id
+    expected_cv_text = cv.cv_text[:16000]
+    db = db_session(); db.add(cv); db.commit(); db.close()
     queued = client.post("/api/v1/career/jobs/analyze", json={"job_text": "Data analyst rolü için SQL ve Python bilen ekip arkadaşı arıyoruz."}, headers=auth)
     assert queued.status_code == 202
     assert queued.json()["status"] == "queued"
@@ -59,6 +69,145 @@ def test_job_analysis_requires_current_cv_and_queues_ai(client, monkeypatch):
     listed = client.get("/api/v1/career/jobs", headers=auth).json()
     assert [row["id"] for row in listed] == [queued.json()["id"]]
     assert listed[0]["saved"] is False
+    assert len(dispatched) == 1
+    job_id, snapshot = dispatched[0]
+    assert job_id == queued.json()["id"]
+    assert snapshot == {
+        "cv_text": expected_cv_text,
+        "current_role": "Click-time Analyst",
+        "profile": {"summary": "click-time profile"},
+        "skills": [{"name": "SQL", "score": 80}, {"name": "Python", "score": 65}],
+    }
+    assert queued.json()["source_analysis_id"] == source_id
+    assert queued.json()["source_cv_file_name"] == "click-time.pdf"
+
+
+def test_job_analysis_blocks_older_ready_cv_while_latest_cv_is_pending(client, monkeypatch):
+    register(client)
+    auth = headers(client)
+    dispatched = []
+    monkeypatch.setattr("app.api.v1.career.analyze_job_task.delay", lambda *args: dispatched.append(args))
+    older = ready_cv()
+    older.id = "older-ready-cv"
+    older.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    pending = ready_cv()
+    pending.id = "latest-pending-cv"
+    pending.status = "running"
+    pending.created_at = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    db = db_session(); db.add_all([older, pending]); db.commit(); db.close()
+
+    response = client.post(
+        "/api/v1/career/jobs/analyze",
+        json={"job_text": "Data analyst rolü için SQL ve Python bilen ekip arkadaşı arıyoruz."},
+        headers=auth,
+    )
+
+    assert response.status_code == 409
+    assert dispatched == []
+    db = db_session()
+    assert db.scalar(select(JobOpportunity).where(JobOpportunity.user_id == 1)) is None
+    db.close()
+
+
+def test_job_publish_failure_marks_committed_row_failed(client, monkeypatch):
+    register(client)
+    auth = headers(client)
+    db = db_session(); db.add(ready_cv()); db.commit(); db.close()
+
+    def unavailable(*_args):
+        raise RuntimeError("broker connection refused")
+
+    monkeypatch.setattr("app.api.v1.career.analyze_job_task.delay", unavailable)
+    response = client.post(
+        "/api/v1/career/jobs/analyze",
+        json={"job_text": "Data analyst rolü için SQL ve Python bilen ekip arkadaşı arıyoruz."},
+        headers=auth,
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {
+        "code": "queue_unavailable",
+        "message": "İşlem kuyruğa alınamadı. Lütfen tekrar deneyin.",
+    }
+    db = db_session()
+    row = db.scalar(select(JobOpportunity).where(JobOpportunity.user_id == 1))
+    assert row is not None
+    assert row.status == "failed"
+    assert row.error_code == "queue_unavailable"
+    assert row.error_message == "İşlem kuyruğa alınamadı. Lütfen tekrar deneyin."
+    db.close()
+
+
+def test_job_snapshot_source_is_tenant_scoped(client, monkeypatch):
+    register(client); auth = headers(client)
+    register(client, "other-snapshot@example.com")
+    dispatched = []
+    monkeypatch.setattr("app.api.v1.career.analyze_job_task.delay", lambda *args: dispatched.append(args))
+    mine = ready_cv(1)
+    mine.file_name = "mine.pdf"
+    mine.cv_text = "MY TENANT CV"
+    other = ready_cv(2)
+    other.file_name = "other.pdf"
+    other.cv_text = "OTHER TENANT CV"
+    other.created_at = datetime(2027, 1, 1, tzinfo=timezone.utc)
+    db = db_session(); db.add_all([mine, other]); db.commit(); db.close()
+
+    response = client.post(
+        "/api/v1/career/jobs/analyze",
+        json={"job_text": "Data analyst rolü için SQL ve Python bilen ekip arkadaşı arıyoruz."},
+        headers=auth,
+    )
+
+    assert response.status_code == 202
+    assert dispatched[0][1]["cv_text"] == "MY TENANT CV"
+    assert response.json()["source_analysis_id"] == "job-analysis-cv-1"
+    assert response.json()["source_cv_file_name"] == "mine.pdf"
+
+
+def test_job_worker_uses_dispatched_snapshot_after_source_analysis_is_replaced(client, monkeypatch):
+    register(client)
+    auth = headers(client)
+    dispatched = []
+    monkeypatch.setattr("app.api.v1.career.analyze_job_task.delay", lambda *args: dispatched.append(args))
+    source = ready_cv()
+    source.file_name = "exact-click.pdf"
+    source.cv_text = "EXACT CLICK SNAPSHOT SQL Python"
+    source.current_role = "Snapshot Role"
+    source.profile = {"summary": "snapshot profile"}
+    source_id = source.id
+    db = db_session(); db.add(source); db.commit(); db.close()
+
+    queued = client.post(
+        "/api/v1/career/jobs/analyze",
+        json={"job_text": "Data analyst rolü için SQL ve Python bilen ekip arkadaşı arıyoruz."},
+        headers=auth,
+    )
+    assert queued.status_code == 202
+    job_id, snapshot = dispatched[0]
+
+    db = db_session()
+    db.delete(db.get(CareerAnalysis, source_id))
+    replacement = ready_cv()
+    replacement.id = "replacement-analysis"
+    replacement.cv_text = "REPLACEMENT CV MUST NOT BE USED"
+    replacement.current_role = "Replacement Role"
+    db.add(replacement)
+    db.commit()
+
+    prompts = []
+    monkeypatch.setattr(service, "_invoke", lambda prompt, _schema: prompts.append(json.loads(prompt)) or job_ai())
+    monkeypatch.setattr(career_tasks, "SessionLocal", lambda: db)
+    career_tasks.analyze_job_task.run(job_id, snapshot)
+
+    assert prompts[0]["cv_text"] == "EXACT CLICK SNAPSHOT SQL Python"
+    assert prompts[0]["current_role"] == "Snapshot Role"
+    assert prompts[0]["profile"] == {"summary": "snapshot profile"}
+    verification_db = db_session()
+    row = verification_db.get(JobOpportunity, job_id)
+    assert row.status == "ready"
+    assert row.source_analysis_id == source_id
+    assert row.source_cv_file_name == "exact-click.pdf"
+    verification_db.close()
 
 
 def test_saved_jobs_are_user_scoped_and_can_be_deleted(client):
@@ -162,6 +311,37 @@ def test_url_only_unreadable_listing_has_safe_failure(client, monkeypatch):
     assert result.error_code == "invalid_listing"
     assert result.error_message == "İlan URL'si okunamadı; ilan metnini yapıştırın"
     assert "internal transport detail" not in result.error_message
+    db.close()
+
+
+def test_url_only_redirect_asks_for_pasted_text(client, monkeypatch):
+    register(client)
+    db = db_session(); cv = ready_cv(); db.add(cv); db.commit()
+    row = service.create_job(db, 1, "https://example.com/redirect", None)
+
+    class RedirectResponse:
+        status_code = 302
+
+    class RedirectHttpClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def get(self, *_args, **_kwargs):
+            return RedirectResponse()
+
+    monkeypatch.setattr(service, "_public_host", lambda _hostname: True)
+    monkeypatch.setattr(service.httpx, "Client", RedirectHttpClient)
+
+    result = service.analyze_job(db, row, cv)
+    assert result.status == "failed"
+    assert result.error_code == "invalid_listing"
+    assert result.error_message == "İlan URL'si yönlendiriliyor; ilan metnini yapıştırın"
     db.close()
 
 

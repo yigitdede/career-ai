@@ -213,11 +213,12 @@ def answer_chat(db: Session, user_id: int, message: str) -> CareerChatMessage:
             .order_by(CareerAnalysis.created_at.desc())
         )
         if analysis is not None:
-            from app.services.job_opportunity import create_job
+            from app.services.job_opportunity import create_job, cv_snapshot, dispatch_job_analysis
             from app.tasks.career import analyze_job_task
 
-            job = create_job(db, user_id, None, message)
-            analyze_job_task.delay(job.id)
+            snapshot = cv_snapshot(analysis)
+            job = create_job(db, user_id, None, message, analysis)
+            dispatch_job_analysis(db, job, snapshot, analyze_job_task.delay)
             action = {"type": "job_cv_draft", "job_id": job.id, "status": job.status}
         else:
             reply = "Bu ilan için CV taslağı oluşturabilmem adına önce CV Merkezi'nden bir CV yükleyip analizini tamamla."

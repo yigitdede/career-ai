@@ -281,6 +281,8 @@ class MarketingPagesTest extends TestCase
         $response->assertSee('İş ilanını analiz et');
         $response->assertSee('CV için öneriler');
         $response->assertSee('Analiz et');
+        $response->assertSee('Analiz CV’si');
+        $response->assertSee('İlan analizi tamamlanamadı');
     }
 
     public function test_panel_ilan_eslestirme_analiz_endpoint(): void

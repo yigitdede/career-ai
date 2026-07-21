@@ -45,9 +45,14 @@ from app.services.career_engine import (
 )
 from app.services.job_opportunity import (
     JobCvVersionError,
+    JobQueueUnavailableError,
+    QUEUE_UNAVAILABLE_CODE,
+    QUEUE_UNAVAILABLE_MESSAGE,
     create_cv_version_for_job,
     create_job,
-    current_analysis as current_ready_analysis,
+    cv_snapshot,
+    dispatch_job_analysis,
+    latest_analysis as latest_user_analysis,
     serialize_job,
 )
 from app.tasks.career import analyze_cv_task, analyze_job_task, apply_job_suggestions_task, plan_target_task, review_evidence_task
@@ -98,10 +103,21 @@ def _localized_locale(
 
 @router.post("/jobs/analyze", status_code=202)
 def create_job_analysis(request: JobAnalyzeRequest, db: DB, user: CurrentUser):
-    if current_ready_analysis(db, user.id) is None:
+    analysis = latest_user_analysis(db, user.id)
+    if analysis is None or analysis.status != "ready":
         raise HTTPException(status_code=409, detail="İlan analizi için önce CV analizi tamamlanmalı")
-    row = create_job(db, user.id, request.source_url, request.job_text)
-    analyze_job_task.delay(row.id)
+    snapshot = cv_snapshot(analysis)
+    row = create_job(db, user.id, request.source_url, request.job_text, analysis)
+    try:
+        dispatch_job_analysis(db, row, snapshot, analyze_job_task.delay)
+    except JobQueueUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": QUEUE_UNAVAILABLE_CODE,
+                "message": QUEUE_UNAVAILABLE_MESSAGE,
+            },
+        ) from exc
     return serialize_job(row)
 
 
@@ -265,11 +281,7 @@ def current_analysis(db: DB, user: CurrentUser):
 
 @router.get("/analysis/latest", response_model=CareerAnalysisResponse | None)
 def latest_analysis(db: DB, user: CurrentUser):
-    row = db.scalar(
-        select(CareerAnalysis)
-        .where(CareerAnalysis.user_id == user.id)
-        .order_by(CareerAnalysis.created_at.desc())
-    )
+    row = latest_user_analysis(db, user.id)
     if row is None:
         return None
     locale = _localized_locale(

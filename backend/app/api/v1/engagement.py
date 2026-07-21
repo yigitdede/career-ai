@@ -26,6 +26,7 @@ from app.services.career_engine import (
     submit_evidence,
 )
 from app.services.ai_factory import AIOutputError, AIProviderError, AIUnavailableError
+from app.services.job_opportunity import JobQueueUnavailableError, QUEUE_UNAVAILABLE_CODE, QUEUE_UNAVAILABLE_MESSAGE
 from app.tasks.career import review_evidence_task
 
 router = APIRouter(prefix="/career", tags=["Career Engagement"], dependencies=[Depends(get_current_user)])
@@ -78,6 +79,11 @@ def send_chat(body: ChatRequest, db: DB, user: CurrentUser):
         return serialize_chat(answer_chat(db, user.id, body.message))
     except (AIUnavailableError, AIOutputError, AIProviderError) as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except JobQueueUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": QUEUE_UNAVAILABLE_CODE, "message": QUEUE_UNAVAILABLE_MESSAGE},
+        ) from exc
 
 
 @router.delete("/chat", status_code=204)

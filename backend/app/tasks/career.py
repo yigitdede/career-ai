@@ -113,12 +113,12 @@ def review_evidence_task(evidence_id: str) -> str:
 
 
 @celery_app.task(name="career.analyze_job")
-def analyze_job_task(job_id: str) -> str:
+def analyze_job_task(job_id: str, cv_snapshot: dict | None = None) -> str:
     db = SessionLocal()
     try:
         row = db.scalar(select(JobOpportunity).where(JobOpportunity.id == job_id))
         if row is not None:
-            analyze_job(db, row)
+            analyze_job(db, row, None, cv_snapshot)
         return job_id
     except Exception:
         logger.exception("Unexpected job analysis task failure", extra={"job_id": job_id})
