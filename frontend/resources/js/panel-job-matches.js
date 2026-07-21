@@ -71,9 +71,11 @@ export function panelJobMatches(seedJobs, config, seedAnalysis = null) {
             for (let attempt = 0; attempt < 150; attempt += 1) {
                 await this.wait(2000);
                 const fresh = normalizeJob(await this.request(this.endpoint(this.config.statusUrl, job)));
-                fresh.selected = job.selected || [];
-                fresh.application_created = job.application_created || fresh.application_created;
-                Object.assign(job, fresh);
+                const target = this.jobs.find((item) => item.id === job.id) || job;
+                fresh.selected = target.selected || [];
+                fresh.application_created = target.application_created || fresh.application_created;
+                Object.assign(target, fresh);
+                job = target;
                 const state = applying ? job.apply_status : job.status;
                 if (state === 'ready') return;
                 if (state === 'failed') throw new Error(job.error_message || this.config.errors.generic);

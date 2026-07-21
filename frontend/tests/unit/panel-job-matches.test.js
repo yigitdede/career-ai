@@ -54,6 +54,24 @@ describe('panelJobMatches', () => {
         assert.equal(state.loading, false);
     });
 
+    it('writes a polled result into the live collection when the caller holds a detached job object', async () => {
+        const state = panelJobMatches([{ id: 'job-1', status: 'queued' }], {
+            statusUrl: '/jobs/__JOB__',
+            errors: { generic: 'error', timeout: 'timeout' },
+        });
+        state.wait = async () => {};
+        state.request = async () => ({
+            id: 'job-1', status: 'ready', title: 'Klinik Laboratuvar Kalite Uzmanı', match_score: 60,
+            matched_skills: ['HPLC'], missing_skills: ['ISO 15189'],
+        });
+
+        await state.poll({ ...state.jobs[0] }, false);
+
+        assert.equal(state.jobs[0].status, 'ready');
+        assert.equal(state.jobs[0].title, 'Klinik Laboratuvar Kalite Uzmanı');
+        assert.equal(state.jobs[0].match_score, 60);
+    });
+
     it('blocks job analysis until the latest CV analysis is ready', async () => {
         const listing = 'SQL, Python ve Power BI bilen bir veri analisti arıyoruz. Raporlama deneyimi zorunludur.';
         const state = panelJobMatches([], {
