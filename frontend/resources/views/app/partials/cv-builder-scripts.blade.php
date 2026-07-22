@@ -41,6 +41,8 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         createVersionUrl: @js(route('panel.cv.versions.create')),
         updateVersionUrl: @js(route('panel.cv.versions.update', ['id' => '__ID__'])),
         deleteVersionUrl: @js(route('panel.cv.versions.delete', ['id' => '__ID__'])),
+        previewVersionModalOpen: false,
+        previewVersionData: null,
         _skipLocalesSync: false,
 
         init() {
@@ -518,6 +520,16 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
             } catch (err) {
                 alert('Bir hata oluştu');
             }
+        },
+
+        openVersionPreview(version) {
+            this.previewVersionData = version;
+            this.previewVersionModalOpen = true;
+        },
+
+        closeVersionPreview() {
+            this.previewVersionModalOpen = false;
+            this.previewVersionData = null;
         }
     };
 }
