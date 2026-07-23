@@ -17,7 +17,7 @@ def test_migration_graph_has_one_unambiguous_head() -> None:
 
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["20260721_18"]
+    assert script.get_heads() == ["20260722_19"]
 
 
 def test_job_analysis_provenance_migration_adds_nullable_snapshot_columns(tmp_path) -> None:

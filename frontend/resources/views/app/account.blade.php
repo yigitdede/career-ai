@@ -212,7 +212,15 @@
             @if (! empty($cvHistory))
                 <ul class="mt-5 divide-y divide-slate-200 border-t border-slate-200 pt-5 dark:divide-slate-800 dark:border-slate-700">
                     @foreach ($cvHistory as $document)
-                        <li class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                        <li class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                            @if (($document['kind'] ?? '') === 'uploaded')
+                                x-data="cvBuilderImport(@js($document), {
+                                    statusUrl: @js(route('panel.cv.builder-draft.status', ['documentId' => $document['id']])),
+                                    queueUrl: @js(route('panel.cv.builder-draft.queue', ['documentId' => $document['id']])),
+                                    openUrl: @js(route('panel.cv-builder', ['cvDocument' => $document['id']])),
+                                    labels: @js(['failed' => __('panel.profile.cv_builder_import_failed'), 'timeout' => __('panel.profile.cv_builder_import_timeout')])
+                                })"
+                            @endif>
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <p class="truncate text-sm font-medium">{{ $document['display_name'] }}</p>
@@ -229,6 +237,20 @@
                                     <span x-show="historyLoadingId === @js($document['id'])" x-cloak>{{ __('panel.profile.cv_analyze_active_working') }}</span>
                                 </button>
                                 @if (($document['kind'] ?? '') === 'generated')<a href="{{ route('panel.cv-builder', ['cvDocument' => $document['id']]) }}" class="text-sky-600 hover:underline dark:text-sky-400">{{ __('panel.profile.cv_restore') }}</a>@endif
+                                @if (($document['kind'] ?? '') === 'uploaded')
+                                    <span x-show="pending" x-cloak class="font-medium text-sky-600 dark:text-sky-400" role="status">
+                                        {{ __('panel.profile.cv_builder_import_preparing') }}
+                                    </span>
+                                    <a x-show="ready" x-cloak href="{{ route('panel.cv-builder', ['cvDocument' => $document['id']]) }}"
+                                        class="font-medium text-sky-600 hover:underline dark:text-sky-400">
+                                        {{ __('panel.profile.cv_builder_import_open') }}
+                                    </a>
+                                    <button x-show="canQueue" x-cloak type="button" @click="queue()" :disabled="busy"
+                                        class="font-medium text-sky-600 hover:underline disabled:opacity-60 dark:text-sky-400">
+                                        <span x-text="status === 'failed' ? @js(__('panel.profile.cv_builder_import_retry')) : @js(__('panel.profile.cv_builder_import_create'))"></span>
+                                    </button>
+                                    <span x-show="error" x-cloak x-text="error" class="font-medium text-red-600 dark:text-red-400" role="alert"></span>
+                                @endif
                                 <div x-data="{ deleteDialogOpen: false }">
                                     <button type="button" @click="deleteDialogOpen = true"
                                         class="text-red-600 hover:underline dark:text-red-400">{{ __('panel.profile.cv_delete') }}</button>

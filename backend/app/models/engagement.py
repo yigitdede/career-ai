@@ -153,6 +153,11 @@ class CvDocument(Base):
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     builder_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    builder_draft_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="not_requested", server_default="not_requested", index=True
+    )
+    builder_draft_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    builder_draft_analysis_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     is_current: Mapped[bool] = mapped_column(Boolean, index=True, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
 

@@ -411,7 +411,7 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                     this.cvVersions = await response.json();
 
                     // İlk yükleme: is_main === true olan sürümü editöre otomatik yükle
-                    if (!this._versionsInitialized) {
+                    if (!this.restoredFromHistory && !this._versionsInitialized) {
                         this._versionsInitialized = true;
                         const mainVersion = this.cvVersions.find(v => v.is_main === true);
                         if (mainVersion) {
@@ -421,6 +421,8 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                             this.previewLang = mainVersion.language;
                             this.activeLoadedVersionId = mainVersion.id;
                         }
+                    } else if (!this._versionsInitialized) {
+                        this._versionsInitialized = true;
                     }
                 }
             } catch (err) {

@@ -17,6 +17,24 @@
         </div>
     </header>
 
+    @if (! empty($builderImportMeta))
+        <div data-cv-builder-import-notice
+            class="mb-6 rounded-2xl border border-amber-400/40 bg-amber-50 px-5 py-4 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+            <p class="font-semibold">{{ __('panel.cv_builder.import_notice_title') }}</p>
+            <p class="mt-1 text-sm">{{ __('panel.cv_builder.import_source', ['name' => $builderImportMeta['source_file_name'] ?? 'CV']) }}</p>
+            @if (! empty($builderImportMissingFields))
+                <p class="mt-2 text-sm">{{ __('panel.cv_builder.import_notice_desc', ['count' => count($builderImportMissingFields)]) }}</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @foreach ($builderImportMissingFields as $field)
+                        <span class="rounded-full border border-amber-400/50 bg-white/70 px-2.5 py-1 text-xs font-medium dark:bg-slate-950/30">
+                            {{ data_get(__('panel.cv_builder.import_fields'), $field, $field) }}
+                        </span>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @endif
+
     <!-- Sürüm Oluşturma Modalı -->
     <div x-show="showVersionCreateModal" x-cloak
         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"
@@ -88,15 +106,38 @@
 
         @if ($currentIsUploaded)
             <div data-cv-current-file x-show="saveStatus !== 'saving'"
+                x-data="cvBuilderImport(@js($currentCv), {
+                    statusUrl: @js(route('panel.cv.builder-draft.status', ['documentId' => $currentCv['id']])),
+                    queueUrl: @js(route('panel.cv.builder-draft.queue', ['documentId' => $currentCv['id']])),
+                    openUrl: @js(route('panel.cv-builder', ['cvDocument' => $currentCv['id']])),
+                    labels: @js(['failed' => __('panel.profile.cv_builder_import_failed'), 'timeout' => __('panel.profile.cv_builder_import_timeout')])
+                })"
                 class="mb-4 flex flex-col gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p class="text-sm text-emerald-700 dark:text-emerald-300">{{ $currentCv['display_name'] }}</p>
                     <p class="mt-1 text-xs text-slate-500">{{ __('panel.profile.last_upload', ['date' => \Illuminate\Support\Carbon::parse($currentCv['created_at'])->format('d.m.Y H:i')]) }}</p>
+                    <p x-show="pending" x-cloak class="mt-2 text-xs font-medium text-sky-700 dark:text-sky-300" role="status">
+                        {{ __('panel.profile.cv_builder_import_preparing') }}
+                    </p>
+                    <p x-show="ready" x-cloak class="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-300" role="status">
+                        {{ __('panel.profile.cv_builder_import_ready') }}
+                    </p>
+                    <p x-show="error" x-cloak x-text="error" class="mt-2 text-xs font-medium text-red-700 dark:text-red-300" role="alert"></p>
                 </div>
-                <button type="button" @click.stop="resetOpen = true"
-                    class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
-                    {{ __('panel.skill_radar.clear_cv') }}
-                </button>
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    <a x-show="ready" x-cloak href="{{ route('panel.cv-builder', ['cvDocument' => $currentCv['id']]) }}"
+                        class="font-medium text-sky-600 hover:underline dark:text-sky-400">
+                        {{ __('panel.profile.cv_builder_import_open') }}
+                    </a>
+                    <button x-show="canQueue" x-cloak type="button" @click.stop="queue()" :disabled="busy"
+                        class="font-medium text-sky-600 hover:underline disabled:opacity-60 dark:text-sky-400">
+                        <span x-text="status === 'failed' ? @js(__('panel.profile.cv_builder_import_retry')) : @js(__('panel.profile.cv_builder_import_create'))"></span>
+                    </button>
+                    <button type="button" @click.stop="resetOpen = true"
+                        class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+                        {{ __('panel.skill_radar.clear_cv') }}
+                    </button>
+                </div>
             </div>
         @endif
 

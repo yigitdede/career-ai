@@ -26,7 +26,7 @@ from app.services.career_engine import career_evidence_file_paths, create_analys
 from app.services.cv_content import has_meaningful_cv_content
 from app.services.cv_parser import extract_text_from_pdf
 from app.services.engagement import archive_active_interviews
-from app.tasks.career import analyze_cv_task
+from app.tasks.career import analyze_cv_task, build_cv_builder_draft_task
 
 router = APIRouter()
 DB = Annotated[Session, Depends(get_db)]
@@ -76,7 +76,19 @@ def _generated_snapshot(builder_data: str, language: str) -> dict:
 
 
 def _serialize_document(row: CvDocument, include_builder: bool = False) -> dict:
-    payload = {"id": row.id, "kind": row.kind, "display_name": row.display_name, "original_name": row.original_name, "file_size": row.file_size, "language": row.language, "is_current": row.is_current, "created_at": row.created_at.isoformat() if row.created_at else None}
+    payload = {
+        "id": row.id,
+        "kind": row.kind,
+        "display_name": row.display_name,
+        "original_name": row.original_name,
+        "file_size": row.file_size,
+        "language": row.language,
+        "is_current": row.is_current,
+        "builder_draft_status": row.builder_draft_status,
+        "builder_draft_error": row.builder_draft_error,
+        "builder_draft_analysis_id": row.builder_draft_analysis_id,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
     if include_builder:
         payload["builder_data"] = row.builder_data
     return payload
@@ -99,6 +111,11 @@ def _dispatch_analysis(db: Session, row: CareerAnalysis) -> None:
             persisted.status = "failed"
             persisted.error_code = _QUEUE_UNAVAILABLE_DETAIL["code"]
             persisted.error_message = _QUEUE_UNAVAILABLE_DETAIL["message"]
+            if persisted.cv_document_id:
+                document = db.get(CvDocument, persisted.cv_document_id)
+                if document is not None and document.kind == "uploaded":
+                    document.builder_draft_status = "failed"
+                    document.builder_draft_error = "CV analizi kuyruğa alınamadığı için alanlar hazırlanamadı."
             db.commit()
         raise HTTPException(status_code=503, detail=_QUEUE_UNAVAILABLE_DETAIL) from exc
 
@@ -152,7 +169,19 @@ async def analyze_cv(db: DB, user: CurrentUser, file: UploadFile = File(...)):
     file_path = _store_pdf(user.id, document_id, data)
     try:
         reset_career_state(db, user.id, "all", commit=False)
-        db.add(CvDocument(id=document_id, user_id=user.id, kind="uploaded", display_name=display_name, original_name=display_name, file_path=file_path, file_size=len(data), language=None, builder_data=None, is_current=True))
+        db.add(CvDocument(
+            id=document_id,
+            user_id=user.id,
+            kind="uploaded",
+            display_name=display_name,
+            original_name=display_name,
+            file_path=file_path,
+            file_size=len(data),
+            language=None,
+            builder_data=None,
+            builder_draft_status="queued",
+            is_current=True,
+        ))
         db.commit()
     except Exception:
         db.rollback()
@@ -173,6 +202,48 @@ def get_cv_document(document_id: str, db: DB, user: CurrentUser):
     row = db.scalar(select(CvDocument).where(CvDocument.id == document_id, CvDocument.user_id == user.id))
     if row is None: raise HTTPException(status_code=404, detail="CV kaydı bulunamadı")
     return _serialize_document(row, include_builder=True)
+
+
+@router.post("/documents/{document_id}/builder-draft", status_code=202)
+def queue_cv_builder_draft(document_id: str, db: DB, user: CurrentUser):
+    row = db.scalar(select(CvDocument).where(
+        CvDocument.id == document_id,
+        CvDocument.user_id == user.id,
+    ))
+    if row is None:
+        raise HTTPException(status_code=404, detail="CV kaydı bulunamadı")
+    if row.kind != "uploaded":
+        raise HTTPException(status_code=422, detail="Yalnız yüklenen PDF CV oluşturucuya aktarılabilir")
+    if row.builder_draft_status == "ready" and isinstance(row.builder_data, dict):
+        return _serialize_document(row)
+    if row.builder_draft_status in {"queued", "running"}:
+        return _serialize_document(row)
+
+    analysis = db.scalar(
+        select(CareerAnalysis)
+        .where(
+            CareerAnalysis.user_id == user.id,
+            CareerAnalysis.cv_document_id == row.id,
+            CareerAnalysis.status == "ready",
+        )
+        .order_by(CareerAnalysis.created_at.desc())
+    )
+    if analysis is None:
+        raise HTTPException(status_code=409, detail="Bu CV için tamamlanmış analiz bulunamadı")
+
+    row.builder_draft_status = "queued"
+    row.builder_draft_error = None
+    row.builder_draft_analysis_id = analysis.id
+    db.commit()
+    db.refresh(row)
+    try:
+        build_cv_builder_draft_task.delay(row.id, analysis.id)
+    except Exception as exc:
+        row.builder_draft_status = "failed"
+        row.builder_draft_error = "CV oluşturucu taslağı kuyruğa alınamadı. Lütfen tekrar deneyin."
+        db.commit()
+        raise HTTPException(status_code=503, detail=row.builder_draft_error) from exc
+    return _serialize_document(row)
 
 
 @router.post("/documents/{document_id}/analyze", response_model=CVQueueResponse, status_code=202)
@@ -204,7 +275,7 @@ async def archive_generated_cv(db: DB, user: CurrentUser, file: UploadFile = Fil
     if not data.startswith(b"%PDF"): raise HTTPException(status_code=422, detail="Geçersiz PDF")
     snapshot = _generated_snapshot(builder_data, language)
     document_id = str(uuid4()); name = _safe_pdf_name(display_name)
-    row = CvDocument(id=document_id, user_id=user.id, kind="generated", display_name=name, original_name=name, file_path=_store_pdf(user.id, document_id, data), file_size=len(data), language=language, builder_data=snapshot, is_current=False)
+    row = CvDocument(id=document_id, user_id=user.id, kind="generated", display_name=name, original_name=name, file_path=_store_pdf(user.id, document_id, data), file_size=len(data), language=language, builder_data=snapshot, builder_draft_status="ready", is_current=False)
     db.add(row); db.commit(); db.refresh(row)
     return _serialize_document(row)
 
@@ -245,6 +316,7 @@ async def archive_and_analyze_generated_cv(
             file_size=len(data),
             language=language,
             builder_data=snapshot,
+            builder_draft_status="ready",
             is_current=True,
         )
         db.add(document)

@@ -69,6 +69,7 @@ def test_cv_analyze_accepts_pdf_and_tracks_current_upload(client, monkeypatch, t
     assert len(documents) == 1
     assert documents[0]["kind"] == "uploaded"
     assert documents[0]["is_current"] is True
+    assert documents[0]["builder_draft_status"] == "queued"
     first_id = documents[0]["id"]
     first_analysis = client.get(f"/api/v1/career/analysis/{data['analysis_id']}", headers={"Authorization": f"Bearer {token}"}).json()
     assert first_analysis["cv_document_id"] == first_id
@@ -132,7 +133,6 @@ def test_cv_analyze_accepts_pdf_and_tracks_current_upload(client, monkeypatch, t
     ])
     db.commit()
     db.close()
-
     second = client.post(
         "/api/v1/cv/analyze",
         files={"file": ("job-specific.pdf", BytesIO(_MINIMAL_PDF), "application/pdf")},
@@ -169,6 +169,54 @@ def test_cv_analyze_accepts_pdf_and_tracks_current_upload(client, monkeypatch, t
     reanalysis = client.post(f"/api/v1/cv/documents/{first_id}/analyze", headers={"Authorization": f"Bearer {token}"})
     assert reanalysis.status_code == 202
     assert reanalysis.json()["status"] == "queued"
+
+
+def test_uploaded_history_can_queue_owner_scoped_builder_draft(client, monkeypatch, tmp_path):
+    client.post("/api/v1/auth/register", json={"full_name": "Draft Owner", "email": "draft-owner@example.com", "password": "GucluParola123!"})
+    token = client.post("/api/v1/auth/login", data={"username": "draft-owner@example.com", "password": "GucluParola123!"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr("app.api.v1.cv.extract_text_from_pdf", lambda _data: "SQL Python Excel Pandas ile veri analizi deneyimi")
+    monkeypatch.setattr("app.api.v1.cv.analyze_cv_task.delay", lambda _analysis_id: None)
+    monkeypatch.setattr("app.api.v1.cv.settings.UPLOAD_DIR", str(tmp_path))
+
+    uploaded = client.post(
+        "/api/v1/cv/analyze",
+        files={"file": ("draft.pdf", BytesIO(_MINIMAL_PDF), "application/pdf")},
+        headers=headers,
+    )
+    assert uploaded.status_code == 202, uploaded.text
+    analysis_id = uploaded.json()["analysis_id"]
+    document_id = client.get("/api/v1/cv/documents", headers=headers).json()[0]["id"]
+
+    db = next(app.dependency_overrides[__import__("app.core.database", fromlist=["get_db"]).get_db]())
+    analysis = db.get(CareerAnalysis, analysis_id)
+    analysis.status = "ready"
+    document = db.get(CvDocument, document_id)
+    document.builder_draft_status = "not_requested"
+    db.commit()
+    db.close()
+
+    queued = []
+    monkeypatch.setattr(
+        "app.api.v1.cv.build_cv_builder_draft_task.delay",
+        lambda queued_document_id, queued_analysis_id: queued.append((queued_document_id, queued_analysis_id)),
+    )
+
+    response = client.post(f"/api/v1/cv/documents/{document_id}/builder-draft", headers=headers)
+
+    assert response.status_code == 202
+    assert response.json()["builder_draft_status"] == "queued"
+    assert queued == [(document_id, analysis_id)]
+    detail = client.get(f"/api/v1/cv/documents/{document_id}", headers=headers).json()
+    assert detail["builder_draft_status"] == "queued"
+    assert detail["builder_data"] is None
+
+    client.post("/api/v1/auth/register", json={"full_name": "Other Draft", "email": "other-draft@example.com", "password": "GucluParola123!"})
+    other_token = client.post("/api/v1/auth/login", data={"username": "other-draft@example.com", "password": "GucluParola123!"}).json()["access_token"]
+    assert client.post(
+        f"/api/v1/cv/documents/{document_id}/builder-draft",
+        headers={"Authorization": f"Bearer {other_token}"},
+    ).status_code == 404
 
 
 def test_reset_all_keeps_uploaded_cv_in_history_without_current_badge(client, monkeypatch, tmp_path):
@@ -307,6 +355,29 @@ def test_archived_document_publish_failure_marks_analysis_failed(client, monkeyp
     assert row.status == "failed"
     assert row.error_code == "queue_unavailable"
     db.close()
+
+
+def test_uploaded_document_publish_failure_marks_builder_draft_failed(client, monkeypatch, tmp_path):
+    client.post("/api/v1/auth/register", json={"full_name": "Upload Queue", "email": "upload-queue@example.com", "password": "GucluParola123!"})
+    token = client.post("/api/v1/auth/login", data={"username": "upload-queue@example.com", "password": "GucluParola123!"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr("app.api.v1.cv.settings.UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setattr("app.api.v1.cv.extract_text_from_pdf", lambda _data: "SQL Python Excel Pandas ile veri analizi deneyimi")
+    monkeypatch.setattr(
+        "app.api.v1.cv.analyze_cv_task.delay",
+        lambda _analysis_id: (_ for _ in ()).throw(RuntimeError("broker offline")),
+    )
+
+    response = client.post(
+        "/api/v1/cv/analyze",
+        headers=headers,
+        files={"file": ("queue.pdf", BytesIO(_MINIMAL_PDF), "application/pdf")},
+    )
+
+    assert response.status_code == 503
+    document = client.get("/api/v1/cv/documents", headers=headers).json()[0]
+    assert document["builder_draft_status"] == "failed"
+    assert document["builder_draft_error"] == "CV analizi kuyruğa alınamadığı için alanlar hazırlanamadı."
 
 
 def test_generated_activation_publish_failure_marks_analysis_failed(client, monkeypatch, tmp_path):

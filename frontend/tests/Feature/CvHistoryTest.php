@@ -42,6 +42,8 @@ class CvHistoryTest extends TestCase
             ->assertDontSee('panel-upload-zone', false)
             ->assertDontSee('Tekrar indir')
             ->assertSee('Aç ve düzenle')->assertSee('Aktif analiz yap')
+            ->assertSee('AI ile kutuları doldur')
+            ->assertSee('Oluşturucuda aç')
             ->assertSee('data-cv-delete-dialog', false)
             ->assertSee('border-t border-slate-200 pt-5', false)
             ->assertSee('@click="deleteDialogOpen = true"', false)
@@ -137,6 +139,62 @@ class CvHistoryTest extends TestCase
 
         $this->get('/panel/hesap/cv-gecmisi/generated-1/indir')->assertOk()->assertHeader('content-type', 'application/pdf')->assertContent('%PDF-1.4');
         $this->get('/panel/cv-merkezi?cvDocument=generated-1')->assertOk()->assertSee('Restore User')->assertSee('restoredFromHistory', false);
+    }
+
+    public function test_uploaded_ai_draft_opens_unsaved_builder_fields_with_missing_data_notice(): void
+    {
+        $locale = static fn (string $name): array => [
+            'personal' => ['full_name' => $name, 'email' => 'ali@example.com', 'phone' => '', 'location' => 'İstanbul', 'linkedin' => '', 'summary' => 'Analist'],
+            'education' => [], 'experience' => [], 'skills' => [['id' => 'skill-1', 'category' => 'Teknik', 'items' => 'SQL']],
+            'projects' => [], 'certificates' => [], 'enabledOptional' => [], 'optional' => [],
+        ];
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/documents/upload-1' => Http::response([
+                'id' => 'upload-1', 'kind' => 'uploaded', 'builder_draft_status' => 'ready',
+                'builder_data' => [
+                    'tr' => $locale('Ali Aday'), 'en' => $locale('Ali Candidate'),
+                    '_meta' => [
+                        'source_file_name' => 'Ali_Aday.pdf',
+                        'missing_fields' => ['tr' => ['personal.phone', 'education'], 'en' => ['personal.phone', 'education']],
+                    ],
+                ],
+            ]),
+            'http://localhost:8000/*' => Http::response([]),
+        ]);
+
+        $this->get('/panel/cv-merkezi?cvDocument=upload-1')
+            ->assertOk()
+            ->assertSee('Ali Aday')
+            ->assertSee('AI taslağı kaynak CV’den hazırlandı')
+            ->assertSee('Kaynak CV: Ali_Aday.pdf')
+            ->assertSee('Telefon')
+            ->assertSee('Eğitim')
+            ->assertSee('2 alan boş bırakıldı')
+            ->assertSee('if (!this.restoredFromHistory && !this._versionsInitialized)', false)
+            ->assertSee('data-cv-builder-import-notice', false);
+    }
+
+    public function test_uploaded_cv_builder_draft_status_and_queue_are_account_scoped_proxies(): void
+    {
+        Http::fake(function ($request) {
+            if ($request->method() === 'GET' && $request->url() === 'http://localhost:8000/api/v1/cv/documents/upload-1') {
+                return Http::response(['id' => 'upload-1', 'builder_draft_status' => 'ready']);
+            }
+            if ($request->method() === 'POST' && $request->url() === 'http://localhost:8000/api/v1/cv/documents/upload-1/builder-draft') {
+                return Http::response(['id' => 'upload-1', 'builder_draft_status' => 'queued'], 202);
+            }
+            return Http::response([], 404);
+        });
+
+        $this->get('/panel/cv-merkezi/belgeler/upload-1/taslak')
+            ->assertOk()
+            ->assertJsonPath('builder_draft_status', 'ready');
+        $this->post('/panel/cv-merkezi/belgeler/upload-1/taslak')
+            ->assertStatus(202)
+            ->assertJsonPath('builder_draft_status', 'queued');
+
+        Http::assertSent(fn ($request): bool => $request->method() === 'POST'
+            && $request->url() === 'http://localhost:8000/api/v1/cv/documents/upload-1/builder-draft');
     }
 
     public function test_ai_created_cv_version_opens_in_builder_without_replacing_main_cv(): void

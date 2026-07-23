@@ -6,6 +6,7 @@ from PIL import Image
 from sqlalchemy.exc import OperationalError
 
 from app.models.career_engine import CareerAnalysis, CareerTask, CareerTarget, Evidence
+from app.models.engagement import CvDocument
 from app.services import career_engine
 from app.tasks import career as career_tasks
 
@@ -164,6 +165,44 @@ def test_cv_task_routes_operational_error_to_database_retry(monkeypatch):
 
     assert result == row.id
     assert calls[0][2:] == (row.id, error)
+
+
+def test_ready_uploaded_cv_analysis_queues_builder_draft(monkeypatch):
+    row = CareerAnalysis(
+        id="upload-analysis",
+        user_id=7,
+        status="queued",
+        source="upload",
+        cv_document_id="upload-document",
+        cv_text="SQL Python Excel Pandas ile veri analizi deneyimi",
+    )
+    document = CvDocument(
+        id="upload-document",
+        user_id=7,
+        kind="uploaded",
+        display_name="aday.pdf",
+        original_name="aday.pdf",
+        file_path="/tmp/aday.pdf",
+        file_size=100,
+        builder_draft_status="queued",
+        is_current=True,
+    )
+    rows = iter([row, document])
+
+    class Session:
+        def scalar(self, _query):
+            return next(rows)
+
+        def close(self):
+            return None
+
+    queued = []
+    monkeypatch.setattr(career_tasks, "SessionLocal", Session)
+    monkeypatch.setattr(career_tasks, "analyze_row", lambda _db, analysis: setattr(analysis, "status", "ready"))
+    monkeypatch.setattr(career_tasks.build_cv_builder_draft_task, "delay", lambda document_id, analysis_id: queued.append((document_id, analysis_id)))
+
+    assert career_tasks.analyze_cv_task.run(row.id) == row.id
+    assert queued == [(document.id, row.id)]
 
 
 def test_analysis_strict_ai_contains_all_tiers_and_null_current_role(client, monkeypatch):

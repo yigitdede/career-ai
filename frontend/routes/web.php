@@ -127,6 +127,8 @@ Route::prefix('panel')->name('panel.')->middleware(['auth.api', 'auth.api.candid
     Route::get('/cv-merkezi/analiz/{analysisId}/akis', [CvUploadController::class, 'stream'])->name('cv.analysis-stream');
     Route::post('/cv-merkezi/temizle', [CvUploadController::class, 'clear'])->name('cv.clear');
     Route::post('/cv-merkezi/pdf-arsivle', [CvUploadController::class, 'archiveGeneratedPdf'])->name('cv.archive-generated');
+    Route::get('/cv-merkezi/belgeler/{documentId}/taslak', [CvBuilderController::class, 'builderDraftStatus'])->name('cv.builder-draft.status');
+    Route::post('/cv-merkezi/belgeler/{documentId}/taslak', [CvBuilderController::class, 'queueBuilderDraft'])->name('cv.builder-draft.queue');
     Route::get('/cv-merkezi/surumler', [CvBuilderController::class, 'listVersions'])->name('cv.versions.list');
     Route::post('/cv-merkezi/surumler', [CvBuilderController::class, 'createVersion'])->name('cv.versions.create');
     Route::put('/cv-merkezi/surumler/{id}', [CvBuilderController::class, 'updateVersion'])->name('cv.versions.update');

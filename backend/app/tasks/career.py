@@ -6,7 +6,9 @@ from sqlalchemy.exc import OperationalError
 from app.celery_app import celery_app
 from app.core.database import SessionLocal
 from app.models.career_engine import CareerAnalysis, CareerTarget, CareerTask, Evidence, JobOpportunity
+from app.models.engagement import CvDocument
 from app.services.career_engine import analyze_row, plan_target, review_evidence
+from app.services.cv_builder_import import import_cv_to_builder
 from app.services.job_opportunity import analyze_job, apply_suggestions
 
 _CV_DATABASE_RETRY_DELAYS = (1, 2, 4)
@@ -35,6 +37,11 @@ def retry_cv_database_disconnect(task, db, analysis_id: str, error: OperationalE
         row.status = "failed"
         row.error_code = _CV_DATABASE_ERROR_CODE
         row.error_message = _CV_DATABASE_ERROR_MESSAGE
+        if row.source == "upload" and row.cv_document_id:
+            document = failed_db.get(CvDocument, row.cv_document_id)
+            if document is not None and document.user_id == row.user_id:
+                document.builder_draft_status = "failed"
+                document.builder_draft_error = "CV analizi tamamlanamadığı için alanlar hazırlanamadı."
         failed_db.commit()
     except OperationalError:
         failed_db.rollback()
@@ -50,10 +57,64 @@ def analyze_cv_task(self, analysis_id: str) -> str:
         if row is None:
             return analysis_id
         analyze_row(db, row)
+        if row.source == "upload" and row.cv_document_id:
+            document = db.scalar(select(CvDocument).where(
+                CvDocument.id == row.cv_document_id,
+                CvDocument.user_id == row.user_id,
+                CvDocument.kind == "uploaded",
+            ))
+            if document is not None and row.status == "ready":
+                try:
+                    build_cv_builder_draft_task.delay(document.id, row.id)
+                except Exception:
+                    document.builder_draft_status = "failed"
+                    document.builder_draft_error = "CV oluşturucu taslağı kuyruğa alınamadı. Lütfen tekrar deneyin."
+                    db.commit()
+                    logger.exception("CV builder draft publish failed", extra={"document_id": document.id})
+            elif document is not None and row.status == "failed":
+                document.builder_draft_status = "failed"
+                document.builder_draft_error = "CV analizi tamamlanamadığı için alanlar hazırlanamadı."
+                db.commit()
         return analysis_id
     except OperationalError as error:
         retry_cv_database_disconnect(self, db, analysis_id, error)
         return analysis_id
+    finally:
+        db.close()
+
+
+@celery_app.task(name="career.build_cv_builder_draft")
+def build_cv_builder_draft_task(document_id: str, analysis_id: str) -> str:
+    db = SessionLocal()
+    try:
+        document = db.scalar(select(CvDocument).where(CvDocument.id == document_id, CvDocument.kind == "uploaded"))
+        analysis = db.scalar(select(CareerAnalysis).where(
+            CareerAnalysis.id == analysis_id,
+            CareerAnalysis.cv_document_id == document_id,
+            CareerAnalysis.status == "ready",
+        ))
+        if document is None:
+            return document_id
+        if analysis is None or document.user_id != analysis.user_id:
+            document.builder_draft_status = "failed"
+            document.builder_draft_error = "CV analizi bulunamadığı için alanlar hazırlanamadı."
+            db.commit()
+            return document_id
+        document.builder_draft_status = "running"
+        document.builder_draft_analysis_id = analysis.id
+        document.builder_draft_error = None
+        db.commit()
+        import_cv_to_builder(db, document, analysis)
+        return document_id
+    except Exception:
+        db.rollback()
+        document = db.get(CvDocument, document_id)
+        if document is not None:
+            document.builder_draft_status = "failed"
+            document.builder_draft_error = "CV alanları AI ile hazırlanamadı. Lütfen tekrar deneyin."
+            db.commit()
+        logger.exception("CV builder draft generation failed", extra={"document_id": document_id})
+        return document_id
     finally:
         db.close()
 

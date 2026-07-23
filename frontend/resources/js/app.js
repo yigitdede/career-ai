@@ -25,6 +25,7 @@ import { adminOrganizations } from './admin-organizations';
 import { companyApplications, companyAssessments, companyPositions, companyShareLinks } from './company-recruiting-tables';
 import { bootJobShareQr } from './job-share-qr';
 import { bootCompanyPositionAnalysis } from './company-position-analysis';
+import { cvBuilderImport } from './panel-cv-builder-import';
 
 window.PanelCvStore = PanelCvStore;
 window.panelCvRadar = panelCvRadar;
@@ -50,6 +51,7 @@ window.companyPositions = companyPositions;
 window.companyShareLinks = companyShareLinks;
 window.panelJobMatches = panelJobMatches;
 window.panelJobListings = panelJobListings;
+window.cvBuilderImport = cvBuilderImport;
 window.exportHarvardCvPdf = exportHarvardCvPdf;
 window.renderHarvardCvPdf = renderHarvardCvPdf;
 window.downloadPdfBlob = downloadPdfBlob;

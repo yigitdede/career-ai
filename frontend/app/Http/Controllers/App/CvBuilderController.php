@@ -25,10 +25,22 @@ class CvBuilderController extends PanelController
 
         $cvDraft = $this->blankCvDraft($profile);
         $restoredFromHistory = false;
+        $builderImportMeta = [];
+        $builderImportMissingFields = [];
         if ($request->filled('cvDocument')) {
             $document = $api->cvDocument((string) $request->query('cvDocument'));
             $snapshot = ($document['ok'] ?? false) ? ($document['body']['builder_data'] ?? null) : null;
             if (is_array($snapshot) && isset($snapshot['tr'], $snapshot['en'])) {
+                $builderImportMeta = is_array($snapshot['_meta'] ?? null) ? $snapshot['_meta'] : [];
+                $missingByLocale = is_array($builderImportMeta['missing_fields'] ?? null) ? $builderImportMeta['missing_fields'] : [];
+                $builderImportMissingFields = collect($missingByLocale)
+                    ->filter(fn ($items) => is_array($items))
+                    ->flatten()
+                    ->filter(fn ($item) => is_string($item) && $item !== '')
+                    ->unique()
+                    ->values()
+                    ->all();
+                unset($snapshot['_meta']);
                 $cvDraft = $snapshot;
                 $restoredFromHistory = true;
             }
@@ -49,6 +61,8 @@ class CvBuilderController extends PanelController
         return $this->panelView('app.cv-builder', [
             'cvDraft' => $cvDraft,
             'restoredFromHistory' => $restoredFromHistory,
+            'builderImportMeta' => $builderImportMeta,
+            'builderImportMissingFields' => $builderImportMissingFields,
             'cvLabels' => $this->cvLabelsForJs(),
             'skillRadar' => $this->skillRadar($analysis),
             'hasCvAnalysis' => $hasCvAnalysis,
@@ -153,6 +167,16 @@ class CvBuilderController extends PanelController
     {
         $result = $api->deleteCvVersion($id);
         return $this->apiResponse($result);
+    }
+
+    public function builderDraftStatus(string $documentId, CareerTalentApiClient $api): JsonResponse
+    {
+        return $this->apiResponse($api->cvDocument($documentId));
+    }
+
+    public function queueBuilderDraft(string $documentId, CareerTalentApiClient $api): JsonResponse
+    {
+        return $this->apiResponse($api->queueCvBuilderDraft($documentId));
     }
 
     private function apiResponse(array $result): JsonResponse
