@@ -359,6 +359,27 @@ class CareerTalentApiClient
         return $this->patchJson('/api/v1/company/positions/'.rawurlencode($positionId).'/applications/'.rawurlencode($applicationId), $payload, 15, ['X-Organization-ID' => $organizationId]);
     }
 
+    public function companyApplicationCvPreview(string $organizationId, string $applicationId): array
+    {
+        try {
+            $response = $this->request(15, ['X-Organization-ID' => $organizationId])
+                ->get($this->baseUrl().'/api/v1/company/applications/'.rawurlencode($applicationId).'/cv-preview');
+
+            if (! $response->successful()) {
+                return ['ok' => false, 'status' => $response->status(), 'body' => null, 'content_type' => null];
+            }
+
+            return [
+                'ok' => true,
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'content_type' => $response->header('Content-Type') ?? 'application/pdf',
+            ];
+        } catch (ConnectionException $exception) {
+            return ['ok' => false, 'status' => null, 'body' => null, 'content_type' => null];
+        }
+    }
+
     public function companyAssessments(string $organizationId): array
     {
         return $this->getJson('/api/v1/company/assessments', 10, ['X-Organization-ID' => $organizationId]);

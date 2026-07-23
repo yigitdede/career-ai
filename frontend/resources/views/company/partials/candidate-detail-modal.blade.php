@@ -198,3 +198,43 @@
         </div>
     </div>
 </div>
+
+<!-- CV PDF Önizleme Modalı -->
+<div x-show="isCvModalOpen"
+     x-cloak
+     class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm"
+     x-transition:enter="ease-out duration-300"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="ease-in duration-200"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0">
+    <div class="relative w-full max-w-5xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh]"
+         @click.away="closeCvModal()">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800 mb-4">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>📄</span>
+                <span x-text="cvPreviewTitle"></span>
+            </h3>
+            <div class="flex items-center gap-2">
+                <a :href="cvPreviewUrl" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition">
+                    ↗️ Yeni Sekmede Aç
+                </a>
+                <button @click="closeCvModal()" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Body / Iframe -->
+        <div class="flex-1 w-full min-h-[550px] bg-slate-100 dark:bg-slate-950 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <template x-if="cvPreviewUrl">
+                <iframe :src="cvPreviewUrl" class="w-full h-full min-h-[550px]" frameborder="0"></iframe>
+            </template>
+        </div>
+    </div>
+</div>

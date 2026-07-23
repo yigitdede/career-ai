@@ -305,6 +305,21 @@ class CompanyController extends Controller
             : back()->withInput()->withErrors(['application' => $result['error']]);
     }
 
+    public function previewApplicationCv(Request $request, CareerTalentApiClient $api)
+    {
+        $applicationId = (string) $request->route('application');
+        $orgId = $this->organizationId($request);
+        $result = $api->companyApplicationCvPreview($orgId, $applicationId);
+
+        if (! $result['ok'] || empty($result['body'])) {
+            abort(404, 'CV dokümanı bulunamadı.');
+        }
+
+        return response($result['body'], 200)
+            ->header('Content-Type', $result['content_type'] ?? 'application/pdf')
+            ->header('Content-Disposition', 'inline; filename="cv-preview.pdf"');
+    }
+
     public function assessments(Request $request, CareerTalentApiClient $api): View
     {
         $result = $api->companyAssessments($this->organizationId($request));

@@ -118,6 +118,21 @@ function companyPositionQuestions(config) {
             options_text: '',
             is_required: true,
         },
+        init() {
+            this.fetchQuestions();
+        },
+        async fetchQuestions() {
+            try {
+                const res = await fetch(`/api/v1/company/positions/${this.positionId}/questions`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    this.questions = await res.json();
+                }
+            } catch (err) {
+                // Silently handled
+            }
+        },
         openAddModal() {
             this.editingId = null;
             this.form = { question_text: '', question_type: 'text', options_text: '', is_required: true };
@@ -170,17 +185,11 @@ function companyPositionQuestions(config) {
                 });
                 
                 if (res.ok) {
-                    const saved = await res.json();
-                    if (this.editingId) {
-                        const idx = this.questions.findIndex(q => q.id === this.editingId);
-                        if (idx !== -1) this.questions[idx] = saved;
-                    } else {
-                        this.questions.push(saved);
-                    }
+                    await this.fetchQuestions();
                     this.closeFormModal();
                 }
             } catch (err) {
-                // Silently handled per guidelines
+                // Silently handled
             }
         },
         async deleteQuestion(id) {
@@ -188,10 +197,10 @@ function companyPositionQuestions(config) {
             try {
                 const res = await fetch(`/api/v1/company/positions/${this.positionId}/questions/${id}`, { method: 'DELETE' });
                 if (res.ok) {
-                    this.questions = this.questions.filter(q => q.id !== id);
+                    await this.fetchQuestions();
                 }
             } catch (err) {
-                // Silently handled per guidelines
+                // Silently handled
             }
         }
     };

@@ -1,12 +1,15 @@
+import os
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from app.models.engagement import CvDocument
 
 from app.core.company_permissions import (
     COMPANY_PERMISSION_KEYS,
@@ -521,6 +524,8 @@ def position_detail(position_id: str, db: DB, context=Depends(_context)) -> Comp
         "missing_documents": [] if row.cv_document_id else ["cv"],
         "last_action_at": row.updated_at, "applied_at": row.applied_at,
         "analysis_result": row.analysis_result or {},
+        "cv_document_id": row.cv_document_id,
+        "application_snapshot": row.application_snapshot or {},
     } for row in application_rows]
     assessments_payload = [{
         "id": row.id, "application_id": row.application_id, "title": row.title,
@@ -724,6 +729,71 @@ def applications(
 ) -> CompanyApplicationsResponse:
     _, organization, _ = _require_permission(context, "applications.view")
     return recruiting_applications(db, organization, queue, stage, position_id)
+
+
+@router.get("/applications/{application_id}/cv-preview")
+def get_application_cv_preview(
+    application_id: str,
+    db: DB,
+    context=Depends(_context),
+):
+    _, organization, _ = _require_permission(context, "applications.view")
+    application = db.scalar(select(RecruitingApplication).where(
+        RecruitingApplication.id == application_id,
+        RecruitingApplication.organization_id == organization.id,
+    ))
+    if application is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    doc = None
+    if application.cv_document_id:
+        doc = db.get(CvDocument, application.cv_document_id)
+
+    if doc and doc.file_path and os.path.exists(doc.file_path):
+        ext = os.path.splitext(doc.file_path)[1].lower()
+        content_type = "application/pdf" if ext == ".pdf" else "application/octet-stream"
+        return FileResponse(
+            path=doc.file_path,
+            media_type=content_type,
+            headers={"Content-Disposition": f'inline; filename="{doc.display_name or "cv.pdf"}"'}
+        )
+
+    snapshot = application.application_snapshot or {}
+    cv_data = snapshot.get("cv", {})
+    disp_name = cv_data.get("display_name") or "Aday Özgeçmişi"
+    candidate_name = application.candidate_name or "Aday"
+    candidate_email = application.candidate_email or "—"
+    lang = str(cv_data.get("language") or "tr").upper()
+    summary_text = cv_data.get("summary") or cv_data.get("raw_text") or "Aday CV bilgileri snapshot formatında mevcuttur."
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{disp_name}</title>
+    <style>
+        body {{ font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #0f172a; line-height: 1.6; background: #f8fafc; }}
+        .card {{ background: #ffffff; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
+        h1 {{ font-size: 22px; color: #0f172a; border-bottom: 2px solid #10b981; padding-bottom: 10px; margin-top: 0; }}
+        .meta {{ background: #f1f5f9; padding: 16px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; border: 1px solid #e2e8f0; }}
+        .meta p {{ margin: 4px 0; }}
+        .content {{ background: #0f172a; color: #f8fafc; padding: 20px; border-radius: 8px; overflow-x: auto; font-size: 13px; font-family: monospace; white-space: pre-wrap; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>{candidate_name} — CV Özeti</h1>
+        <div class="meta">
+            <p><strong>E-posta:</strong> {candidate_email}</p>
+            <p><strong>CV Sürüm Adı:</strong> {disp_name}</p>
+            <p><strong>Dil:</strong> {lang}</p>
+        </div>
+        <h3 style="font-size: 15px; margin-bottom: 8px;">Özgeçmiş İçeriği</h3>
+        <div class="content">{summary_text}</div>
+    </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html_content)
 
 
 @router.patch("/positions/{position_id}/applications/{application_id}", response_model=CompanyApplicationActionResponse)

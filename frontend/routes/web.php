@@ -227,6 +227,7 @@ Route::prefix('{organizationSlug}')
         Route::get('/ats-sozlugu', [CompanyController::class, 'ats'])->name('ats');
         Route::patch('/ats-sozlugu', [CompanyController::class, 'updateAts'])->name('ats.update');
         Route::get('/adaylar', [CompanyController::class, 'applications'])->name('applications');
+        Route::get('/basvurular/{application}/cv-preview', [CompanyController::class, 'previewApplicationCv'])->name('applications.cv.preview');
         Route::get('/degerlendirmeler', [CompanyController::class, 'assessments'])->name('assessments');
         Route::get('/profil', [CompanyController::class, 'profile'])->name('profile');
         Route::patch('/profil', [CompanyController::class, 'updateProfile'])->name('profile.update');

@@ -20,6 +20,9 @@ export function companyApplications(config) {
         isModalOpen: false,
         selectedCandidate: null,
         activeModalTab: 'profile',
+        isCvModalOpen: false,
+        cvPreviewUrl: '',
+        cvPreviewTitle: '',
 
         openCandidateModal(candidate) {
             this.selectedCandidate = candidate;
@@ -38,43 +41,22 @@ export function companyApplications(config) {
 
         openCvPreview(candidate) {
             const targetCandidate = candidate || this.selectedCandidate;
-            const cvDocId = targetCandidate?.cv_document_id || targetCandidate?.application_snapshot?.cv?.id;
-            
-            if (cvDocId) {
-                window.open(`/panel/cv-documents/${cvDocId}/download`, '_blank');
-            } else if (targetCandidate?.application_snapshot?.cv) {
-                const cvData = targetCandidate.application_snapshot.cv;
-                const win = window.open('', '_blank');
-                if (win) {
-                    win.document.write(`
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <title>${cvData.display_name || 'Özgeçmiş Önizleme'}</title>
-                            <style>
-                                body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #0f172a; line-height: 1.6; }
-                                h1 { font-size: 24px; border-bottom: 2px solid #10b981; padding-bottom: 10px; margin-bottom: 20px; }
-                                .meta { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
-                                pre { background: #0f172a; color: #f8fafc; padding: 20px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>${targetCandidate.candidate_name || 'Aday'} — CV Sürüm Özeti</h1>
-                            <div class="meta">
-                                <p><strong>E-posta:</strong> ${targetCandidate.candidate_email || '—'}</p>
-                                <p><strong>CV Sürüm Adı:</strong> ${cvData.display_name || 'Özgeçmiş'}</p>
-                                <p><strong>Dil:</strong> ${(cvData.language || 'tr').toUpperCase()}</p>
-                            </div>
-                            <h3>CV İçerik Yapısı (Snapshot)</h3>
-                            <pre>${JSON.stringify(cvData, null, 2)}</pre>
-                        </body>
-                        </html>
-                    `);
-                    win.document.close();
-                }
-            } else {
-                alert('Adayın gösterilebilir CV dokümanı bulunamadı.');
+            if (!targetCandidate || !targetCandidate.id) {
+                alert('Önizlenecek aday başvurusu bulunamadı.');
+                return;
             }
+            
+            const pathSegments = window.location.pathname.split('/').filter(Boolean);
+            const orgSlug = pathSegments.length > 0 ? pathSegments[0] : '';
+            this.cvPreviewUrl = `/${orgSlug}/basvurular/${targetCandidate.id}/cv-preview`;
+            const cvName = targetCandidate?.application_snapshot?.cv?.display_name || targetCandidate?.candidate_name || 'Aday';
+            this.cvPreviewTitle = `${cvName} — CV Önizleme`;
+            this.isCvModalOpen = true;
+        },
+
+        closeCvModal() {
+            this.isCvModalOpen = false;
+            this.cvPreviewUrl = '';
         },
 
         filteredApplications() {
