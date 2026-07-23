@@ -13,8 +13,8 @@ client = TestClient(app)
 def panel_user() -> User:
     return User(
         id=1,
-        full_name="Ayşe Yılmaz",
-        email="ayse@example.com",
+        full_name="Panel Test User",
+        email="panel-user@example.test",
         hashed_password="not-used",
         is_active=True,
         is_admin=False,
@@ -43,39 +43,39 @@ def test_panel_dashboard_endpoint():
 
     assert response.status_code == 200
     body = response.json()
-    assert body["stats"]["career"] == "Veri Analisti"
-    assert body["weekly_tasks"]
-    assert body["learning_resources"]
+    assert body["stats"] == {
+        "readiness": 0,
+        "career": "",
+        "weekly_tasks_total": 0,
+        "weekly_tasks_done": 0,
+    }
+    assert body["weekly_tasks"] == []
+    assert body["learning_resources"] == []
 
 
 def test_panel_feature_endpoints():
     checks = {
-        "/api/v1/panel/skill-passport": "passport",
-        "/api/v1/panel/interview": "interview",
-        "/api/v1/panel/applications": "applications",
-        "/api/v1/panel/job-radar": "radar",
-        "/api/v1/panel/mentors": "mentors",
-        "/api/v1/panel/chat": "assistant",
-        "/api/v1/panel/career-ladder": "career_ladder",
-        "/api/v1/panel/job-matches": "seed_jobs",
+        "/api/v1/panel/skill-passport": {
+            "passport": {"score": 0, "verified": 0, "total": 0, "items": [], "gaps": []}
+        },
+        "/api/v1/panel/interview": {"interview": {"questions": [], "rubric": []}},
+        "/api/v1/panel/applications": {
+            "applications": {
+                "metrics": {"active": 0, "interviews": 0, "offers": 0},
+                "columns": [],
+            }
+        },
+        "/api/v1/panel/job-radar": {"radar": {"roles": [], "sources": [], "alerts": []}},
+        "/api/v1/panel/mentors": {"mentors": {"packages": [], "experts": []}},
+        "/api/v1/panel/chat": {"assistant": {"prompts": []}},
+        "/api/v1/panel/career-ladder": {"career_ladder": [], "career_tier_meta": {}},
+        "/api/v1/panel/job-matches": {"seed_jobs": [], "user_skills": [], "readiness": 0},
     }
 
-    for path, key in checks.items():
+    for path, expected in checks.items():
         response = client.get(path)
         assert response.status_code == 200, path
-        assert response.json()[key], path
-
-
-def test_panel_job_match_analyze_endpoint():
-    response = client.post(
-        "/api/v1/panel/job-matches/analyze",
-        json={"url": "https://www.linkedin.com/jobs/view/data-analyst-remote-123456"},
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["job"]["match_score"] >= 50
-    assert body["job"]["matched_skills"]
+        assert response.json() == expected, path
 
 
 def test_panel_openapi_exports_response_models():
@@ -84,9 +84,7 @@ def test_panel_openapi_exports_response_models():
     assert response.status_code == 200
     schema = response.json()
     dashboard_schema = schema["paths"]["/api/v1/panel/dashboard"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
-    analyze_schema = schema["paths"]["/api/v1/panel/job-matches/analyze"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
-
     assert dashboard_schema["$ref"].endswith("/DashboardResponse")
-    assert analyze_schema["$ref"].endswith("/JobMatchAnalyzeResponse")
-    assert "JobMatch" in schema["components"]["schemas"]
+    assert "/api/v1/panel/job-matches/analyze" not in schema["paths"]
+    assert "/api/v1/panel/target" not in schema["paths"]
     assert schema["components"]["schemas"]["PanelStats"]["properties"]["readiness"]["maximum"] == 100

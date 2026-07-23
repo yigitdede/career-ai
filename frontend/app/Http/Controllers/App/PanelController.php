@@ -21,23 +21,4 @@ abstract class PanelController extends Controller
         ]));
     }
 
-    /**
-     * FastAPI panel kaynağı. Fallback yalnız API erişilemezse sayfayı ayakta tutar.
-     *
-     * @param  array<string, mixed>  $fallback
-     * @return array<string, mixed>
-     */
-    protected function panelApiData(string $endpoint, array $fallback = []): array
-    {
-        $result = app(CareerTalentApiClient::class)->panel($endpoint);
-
-        if ($result['ok'] && is_array($result['body'])) {
-            return array_merge($fallback, $result['body'], ['_api_source' => 'fastapi']);
-        }
-
-        return array_merge($fallback, [
-            '_api_source' => 'fallback',
-            '_api_error' => $result['error'] ?? 'API bağlantısı kurulamadı',
-        ]);
-    }
 }

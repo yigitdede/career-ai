@@ -3,24 +3,42 @@
 namespace Tests\Unit;
 
 use App\Services\BuilderCvTextExporter;
-use App\Data\PanelDemoData;
 use PHPUnit\Framework\TestCase;
 
 class BuilderCvTextExporterTest extends TestCase
 {
     public function test_exports_builder_locales_to_text(): void
     {
-        $text = BuilderCvTextExporter::toText(PanelDemoData::cvDraft(), 'tr');
+        $text = BuilderCvTextExporter::toText($this->draft(), 'tr');
 
         $this->assertGreaterThan(40, strlen($text));
-        $this->assertStringContainsString('Ayşe Yılmaz', $text);
+        $this->assertStringContainsString('Test Candidate', $text);
         $this->assertStringContainsString('SQL', $text);
     }
 
     public function test_builds_builder_filename(): void
     {
-        $name = BuilderCvTextExporter::fileName(PanelDemoData::cvDraft(), 'tr');
+        $name = BuilderCvTextExporter::fileName($this->draft(), 'tr');
 
-        $this->assertSame('ayse-yilmaz-builder.json', $name);
+        $this->assertSame('test-candidate-builder.json', $name);
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function draft(): array
+    {
+        return [
+            'tr' => [
+                'personal' => [
+                    'full_name' => 'Test Candidate',
+                    'email' => 'candidate@example.test',
+                    'summary' => 'SQL ve veri modelleme deneyimine sahip test adayı.',
+                ],
+                'experience' => [],
+                'education' => [],
+                'skills' => [['category' => 'Teknik', 'items' => 'SQL, PHP']],
+                'projects' => [],
+                'certificates' => [],
+            ],
+        ];
     }
 }

@@ -54,8 +54,8 @@ class PanelPagesI18nTest extends TestCase
       'roadmap-en' => ['/panel/kariyer-rotam', 'en', ['Career Route', 'Career ladder', 'Learning Resources']],
       'tasks-tr' => ['/panel/kariyer-rotam/gorevler', 'tr', ['Görevlerim', 'Görev ekle', 'Kişisel not']],
       'tasks-en' => ['/panel/kariyer-rotam/gorevler', 'en', ['My Tasks', 'Add task', 'Personal note']],
-      'job-listings-tr' => ['/panel/is-ilanlari', 'tr', ['İş İlanları', 'Demo ilan', 'Junior Veri Analisti']],
-      'job-listings-en' => ['/panel/is-ilanlari', 'en', ['Job Listings', 'Demo listing', 'Junior Data Analyst']],
+      'job-listings-tr' => ['/panel/is-ilanlari', 'tr', ['İş İlanları', 'Backend Developer', 'ACME Teknoloji']],
+      'job-listings-en' => ['/panel/is-ilanlari', 'en', ['Job Listings', 'Backend Developer', 'ACME Teknoloji']],
       'job-analysis-tr' => ['/panel/ilan-analizi', 'tr', ['İlan Analizi', 'Analiz et']],
       'job-analysis-en' => ['/panel/ilan-analizi', 'en', ['Job Analysis', 'Analyze']],
       'applications-tr' => ['/panel/basvurularim', 'tr', ['Başvurularım', 'Aktif başvuru']],
@@ -117,9 +117,10 @@ class PanelPagesI18nTest extends TestCase
     $response = $this->get('/panel/cv-merkezi');
 
     $response->assertStatus(200);
-    $response->assertSee('Istanbul University', false);
-    $response->assertSee('İstanbul Üniversitesi', false);
-    $response->assertSee('Ayşe Yılmaz', false);
+    $response->assertDontSee('Istanbul University', false);
+    $response->assertDontSee('İstanbul Üniversitesi', false);
+    $response->assertDontSee('Ayşe Yılmaz', false);
+    $response->assertDontSee('ayse.yilmaz', false);
     $response->assertSee('renderHarvardCvPdf', false);
     $response->assertSee('downloadPdfBlob', false);
     $response->assertSee('editLang', false);
@@ -221,19 +222,32 @@ class PanelPagesI18nTest extends TestCase
     }
   }
 
-  public function test_job_listings_page_combines_demo_preview_with_real_application_path(): void
+  public function test_job_listings_page_only_shows_real_positions_and_application_path(): void
   {
     $response = $this->withSession(['panel_locale' => 'tr'])->get('/panel/is-ilanlari');
 
     $response->assertOk()
       ->assertSee('data-job-listings', false)
-      ->assertSee('data-job-listing-demo', false)
-      ->assertSee('Junior Veri Analisti', false)
       ->assertSee('Backend Developer', false)
       ->assertSee('backend-developer-ABC123', false)
-      ->assertSee('data-demo-application', false)
-      ->assertSee('Demo başvuruyu tamamla', false)
-      ->assertSee('DB kaydı oluşturulmadı', false);
+      ->assertSee('Başvuruyu Tamamla', false)
+      ->assertSee('data-job-application', false)
+      ->assertDontSee('data-job-listing-demo', false)
+      ->assertDontSee('data-demo-application', false)
+      ->assertDontSee('Demo ilan', false)
+      ->assertDontSee('Junior Veri Analisti', false)
+      ->assertDontSee('DB kaydı oluşturulmadı', false);
+  }
+
+  public function test_mentors_page_uses_an_empty_state_instead_of_demo_people_and_packages(): void
+  {
+    $this->withSession(['panel_locale' => 'tr'])
+      ->get('/panel/uzmanlardan-destek')
+      ->assertOk()
+      ->assertSee('data-mentors-empty', false)
+      ->assertDontSee('Ece Kara', false)
+      ->assertDontSee('Mert Aydın', false)
+      ->assertDontSee('₺299', false);
   }
 
   public function test_student_panel_loads_the_livewire_alpine_runtime(): void

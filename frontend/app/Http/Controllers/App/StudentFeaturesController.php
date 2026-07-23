@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\App;
 
-use App\Data\PanelDemoData;
 use App\Services\CareerTalentApiClient;
 use App\Services\PanelTargetRoleStore;
 use App\Services\SkillPassportBuilder;
@@ -167,25 +166,13 @@ class StudentFeaturesController extends PanelController
             : response()->json(['message' => $result['error'] ?? 'İşlem tamamlanamadı'], $result['status'] ?? 502);
     }
 
-    public function jobRadar()
-    {
-        $data = $this->panelApiData('job-radar', [
-            'radar' => PanelDemoData::jobRadar(),
-        ]);
-
-        return $this->panelView('app.job-radar', [
-            'radar' => $data['radar'],
-        ]);
-    }
-
     public function mentors()
     {
-        $data = $this->panelApiData('mentors', [
-            'mentors' => PanelDemoData::mentorMarketplace(),
-        ]);
-
         return $this->panelView('app.mentors', [
-            'mentors' => $data['mentors'],
+            'mentors' => [
+                'packages' => [],
+                'experts' => [],
+            ],
         ]);
     }
 }
