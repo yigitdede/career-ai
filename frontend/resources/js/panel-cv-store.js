@@ -153,32 +153,16 @@ export function watchCvAnalysisViaSse(analysisId, streamUrl, locale, onProgress 
             finish(reject, new Error(payload.error_message || payload.message || 'CV analizi başarısız'));
         });
 
-        source.addEventListener('error', (event) => {
-            const payload = parseSsePayload(event);
-            finish(reject, new Error(payload.message || 'CV analizi başarısız'));
+        source.addEventListener('error', () => {
+            finish(reject, new Error('sse_unavailable'));
         });
 
-        source.addEventListener('timeout', (event) => {
-            const payload = parseSsePayload(event);
-            finish(
-                reject,
-                new Error(
-                    payload.message
-                        || (locale === 'en'
-                            ? 'CV analysis is still running. Refresh this page to check again.'
-                            : 'CV analizi hâlâ sürüyor. Durumu kontrol etmek için sayfayı yenile.'),
-                ),
-            );
+        source.addEventListener('timeout', () => {
+            finish(reject, new Error('sse_unavailable'));
         });
 
         source.onerror = () => {
-            if (settled) {
-                return;
-            }
-
-            settled = true;
-            source.close();
-            reject(new Error('sse_unavailable'));
+            finish(reject, new Error('sse_unavailable'));
         };
     });
 }

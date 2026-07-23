@@ -338,6 +338,72 @@ describe('profileCvUpload archived CV analysis', () => {
             delete globalThis.EventSource;
         }
     });
+
+    it('falls back to status polling and reloads when the upload SSE connection drops', async () => {
+        class FakeEventSource {
+            constructor() {
+                this.listeners = {};
+                FakeEventSource.last = this;
+            }
+
+            addEventListener(type, handler) {
+                this.listeners[type] = handler;
+            }
+
+            close() {
+                this.closed = true;
+            }
+
+            emit(type) {
+                this.listeners[type]?.({});
+            }
+        }
+
+        globalThis.EventSource = FakeEventSource;
+        let requests = 0;
+        globalThis.fetch = async () => {
+            requests += 1;
+            if (requests === 1) {
+                return {
+                    ok: true,
+                    json: async () => ({ analysis_id: 'analysis-sse-fallback', status: 'queued' }),
+                };
+            }
+
+            return {
+                ok: true,
+                json: async () => ({
+                    id: 'analysis-sse-fallback',
+                    status: 'ready',
+                    file_name: 'cv.pdf',
+                    radar: [{ label: 'SQL', score: 90, target: 90 }],
+                }),
+            };
+        };
+        let reloads = 0;
+        window.location.reload = () => { reloads += 1; };
+        const state = profileCvUpload(
+            'tr',
+            '/upload',
+            '/status/__ANALYSIS_ID__',
+            '',
+            '',
+            '/stream/__ANALYSIS_ID__',
+        );
+
+        try {
+            const pending = state.handleCvFile(new File(['cv'], 'cv.pdf', { type: 'application/pdf' }));
+            await new Promise((resolve) => setImmediate(resolve));
+            FakeEventSource.last.emit('error');
+            await pending;
+
+            assert.equal(FakeEventSource.last.closed, true);
+            assert.equal(requests, 2);
+            assert.equal(reloads, 1);
+        } finally {
+            delete globalThis.EventSource;
+        }
+    });
 });
 
 describe('waitForCvAnalysis', () => {

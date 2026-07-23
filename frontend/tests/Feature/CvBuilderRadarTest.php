@@ -49,7 +49,7 @@ class CvBuilderRadarTest extends TestCase
     {
         Http::fake([
             'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
-            'http://localhost:8000/api/v1/career/analysis/current' => Http::response([
+            'http://localhost:8000/api/v1/career/analysis/latest' => Http::response([
                 'id' => 'analysis-generated', 'status' => 'ready', 'file_name' => 'Buse Batan CV.pdf',
                 'radar' => [['label' => 'SQL', 'score' => 72, 'target' => 70]],
             ], 200),
@@ -81,7 +81,7 @@ class CvBuilderRadarTest extends TestCase
     {
         Http::fake([
             'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
-            'http://localhost:8000/api/v1/career/analysis/current' => Http::response([
+            'http://localhost:8000/api/v1/career/analysis/latest' => Http::response([
                 'id' => 'analysis-uploaded', 'status' => 'ready', 'current_role' => 'Business Analyst', 'created_at' => '2026-07-04T00:00:00Z',
                 'radar' => [['label' => 'Excel', 'score' => 80, 'target' => 70]], 'career_ladder' => [],
             ], 200),
@@ -118,5 +118,38 @@ class CvBuilderRadarTest extends TestCase
             ->assertSee(':open="radarExpanded"', false)
             ->assertSee('@toggle="onRadarToggle($event)"', false)
             ->assertSee("persistCvRadarExpanded?.(this.serverAnalysisId", false);
+    }
+
+    public function test_pending_uploaded_analysis_resumes_and_locks_the_upload_area_after_returning(): void
+    {
+        Http::fake([
+            'http://localhost:8000/health' => Http::response(['status' => 'ok'], 200),
+            'http://localhost:8000/api/v1/career/analysis/latest' => Http::response([
+                'id' => 'analysis-pending', 'status' => 'running', 'file_name' => 'Yeni_CV.pdf',
+            ], 200),
+            'http://localhost:8000/api/v1/cv/documents' => Http::response([
+                [
+                    'id' => 'current-pending',
+                    'kind' => 'uploaded',
+                    'display_name' => 'Yeni_CV.pdf',
+                    'is_current' => true,
+                    'created_at' => '2026-07-23T20:10:00+00:00',
+                    'builder_draft_status' => 'queued',
+                ],
+            ], 200),
+            'http://localhost:8000/*' => Http::response([], 200),
+        ]);
+
+        $this->get(route('panel.cv-builder'))
+            ->assertOk()
+            ->assertSee('data-cv-analysis-upload', false)
+            ->assertSee('data-cv-analysis-resumed', false)
+            ->assertSee('analysis-pending', false)
+            ->assertSee('x-show="loading || analysisPending()"', false)
+            ->assertSee(':disabled="loading || analysisPending()"', false)
+            ->assertSee('resumePendingAnalysis()', false)
+            ->assertDontSee('id="yetenek-radari"', false);
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'http://localhost:8000/api/v1/career/analysis/latest');
     }
 }

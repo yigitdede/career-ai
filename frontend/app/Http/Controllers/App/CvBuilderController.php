@@ -11,7 +11,7 @@ class CvBuilderController extends PanelController
 {
     public function show(Request $request, CareerTalentApiClient $api)
     {
-        $analysisResult = $api->currentCareerAnalysis();
+        $analysisResult = $api->latestCareerAnalysis();
         $profileResult = $api->careerProfile();
         $profile = ($profileResult['ok'] ?? false) && is_array($profileResult['body'] ?? null) ? $profileResult['body'] : [];
         $analysis = ($analysisResult['ok'] ?? false) && is_array($analysisResult['body'] ?? null) ? $analysisResult['body'] : [];

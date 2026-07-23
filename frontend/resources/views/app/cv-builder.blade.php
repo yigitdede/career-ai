@@ -144,7 +144,8 @@
 
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
             <div class="min-w-0">
-                <p x-show="loading" x-cloak
+                <p x-show="loading || analysisPending()" x-cloak
+                    data-cv-analysis-resumed
                     class="mb-4 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-800 dark:text-sky-200"
                     role="status">
                     {{ __('panel.profile.cv_analyzing') }}
@@ -155,7 +156,7 @@
 
                 <label class="panel-upload-zone min-h-36"
                     :class="[
-                        loading ? 'pointer-events-none opacity-60' : '',
+                        loading || analysisPending() ? 'pointer-events-none opacity-60' : '',
                         dragOver ? 'panel-upload-zone-active' : '',
                     ]"
                     @dragover.prevent="onDragOver($event)"
@@ -165,13 +166,13 @@
                     <span class="mb-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ __('panel.profile.upload_drag') }}</span>
                     <span class="text-xs text-slate-500">{{ __('panel.profile.upload_hint') }}</span>
                     <input type="file" accept="application/pdf,.pdf" class="hidden"
-                        :disabled="loading" @change="onFileSelect($event)">
+                        :disabled="loading || analysisPending()" @change="onFileSelect($event)">
                 </label>
             </div>
 
-            <div x-show="loading || (saveStatus !== 'saving' && @js($currentIsUploaded && ! empty($skillRadar)))" x-cloak
+            <div x-show="loading || analysisPending() || (saveStatus !== 'saving' && @js($currentIsUploaded && ! empty($skillRadar)))" x-cloak
                 class="flex min-h-36 items-stretch lg:w-44">
-                <div x-show="loading" x-cloak
+                <div x-show="loading || analysisPending()" x-cloak
                     class="panel-card flex w-full flex-col items-center justify-center border-sky-500/20 bg-sky-500/5 px-5 py-4 text-center dark:bg-sky-500/10"
                     data-cv-analysis-pending role="status">
                     <i data-lucide="loader-circle" class="mb-2 h-6 w-6 animate-spin text-sky-500" aria-hidden="true"></i>
