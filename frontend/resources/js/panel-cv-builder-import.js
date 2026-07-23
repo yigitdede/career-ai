@@ -21,6 +21,7 @@ export function cvBuilderImport(initialDocument = {}, config = {}, runtime = {})
     return {
         status: initialDocument?.builder_draft_status || 'not_requested',
         error: initialDocument?.builder_draft_error || '',
+        opened: Boolean(initialDocument?.builder_opened),
         busy: false,
         polling: false,
         statusUrl: config.statusUrl || '',
@@ -39,6 +40,10 @@ export function cvBuilderImport(initialDocument = {}, config = {}, runtime = {})
             return this.status === 'ready';
         },
 
+        get canOpen() {
+            return this.ready && !this.opened;
+        },
+
         get canQueue() {
             return this.status === 'not_requested' || this.status === 'failed';
         },
@@ -50,6 +55,7 @@ export function cvBuilderImport(initialDocument = {}, config = {}, runtime = {})
         apply(payload = {}) {
             this.status = payload.builder_draft_status || this.status;
             this.error = payload.builder_draft_error || '';
+            this.opened = payload.builder_opened ?? this.opened;
         },
 
         async queue() {

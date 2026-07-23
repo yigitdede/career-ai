@@ -241,10 +241,14 @@
                                     <span x-show="pending" x-cloak class="font-medium text-sky-600 dark:text-sky-400" role="status">
                                         {{ __('panel.profile.cv_builder_import_preparing') }}
                                     </span>
-                                    <a x-show="ready" x-cloak href="{{ route('panel.cv-builder', ['cvDocument' => $document['id']]) }}"
-                                        class="font-medium text-sky-600 hover:underline dark:text-sky-400">
-                                        {{ __('panel.profile.cv_builder_import_open') }}
-                                    </a>
+                                    <form x-show="canOpen" x-cloak method="post"
+                                        action="{{ route('panel.cv.builder-draft.activate', ['documentId' => $document['id']]) }}">
+                                        @csrf
+                                        <input type="hidden" name="language" value="{{ app()->getLocale() === 'en' ? 'en' : 'tr' }}">
+                                        <button type="submit" class="font-medium text-sky-600 hover:underline dark:text-sky-400">
+                                            {{ __('panel.profile.cv_builder_import_open') }}
+                                        </button>
+                                    </form>
                                     <button x-show="canQueue" x-cloak type="button" @click="queue()" :disabled="busy"
                                         class="font-medium text-sky-600 hover:underline disabled:opacity-60 dark:text-sky-400">
                                         <span x-text="status === 'failed' ? @js(__('panel.profile.cv_builder_import_retry')) : @js(__('panel.profile.cv_builder_import_create'))"></span>

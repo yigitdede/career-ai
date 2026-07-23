@@ -134,6 +134,30 @@ describe('PanelCvStore.saveBuilder', () => {
         assert.equal(saved.locales.tr.optional.volunteer[0].organization, 'TEV');
         assert.deepEqual(saved.locales.en.enabledOptional, ['languages', 'awards']);
     });
+
+    it('detects only real builder content changes against the clean snapshot', () => {
+        const locales = sampleLocales();
+        const snapshot = PanelCvStore.snapshotBuilder(locales);
+
+        assert.equal(PanelCvStore.builderChanged(locales, snapshot), false);
+
+        locales.tr.personal.full_name = 'Değişen Kullanıcı';
+
+        assert.equal(PanelCvStore.builderChanged(locales, snapshot), true);
+    });
+
+    it('rehydrates both languages linked to the imported main version', () => {
+        const versions = [
+            { id: 'tr-1', language: 'tr', is_main: true, source_document_id: 'upload-1' },
+            { id: 'en-1', language: 'en', is_main: false, source_document_id: 'upload-1' },
+            { id: 'other', language: 'tr', is_main: false, source_document_id: 'upload-2' },
+        ];
+
+        assert.deepEqual(
+            PanelCvStore.linkedBuilderVersions(versions, versions[0]).map((version) => version.id),
+            ['tr-1', 'en-1'],
+        );
+    });
 });
 
 describe('panelCvRadar career reset', () => {

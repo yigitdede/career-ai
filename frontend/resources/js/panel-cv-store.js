@@ -197,6 +197,22 @@ function reloadAfterCvAnalysis(redirectUrl) {
 export const PanelCvStore = {
     get: readState,
 
+    snapshotBuilder(locales) {
+        return JSON.stringify(locales || {});
+    },
+
+    builderChanged(locales, cleanSnapshot) {
+        return this.snapshotBuilder(locales) !== cleanSnapshot;
+    },
+
+    linkedBuilderVersions(versions, mainVersion) {
+        if (!mainVersion) return [];
+        if (!mainVersion.source_document_id) return [mainVersion];
+        return (versions || []).filter(
+            (version) => version.source_document_id === mainVersion.source_document_id,
+        );
+    },
+
     saveBuilder(locales, locale) {
         const persistedLocales = JSON.parse(JSON.stringify(locales));
         const rawName = (persistedLocales?.tr?.personal?.full_name || persistedLocales?.en?.personal?.full_name || 'cv').trim();

@@ -39,8 +39,19 @@ class CandidateCvVersionResponse(BaseModel):
     version_name: str
     language: str
     is_main: bool
+    source_document_id: str | None = None
     payload: dict
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ActivateBuilderDraftRequest(BaseModel):
+    language: Literal["tr", "en"]
+
+
+class ActivateBuilderDraftResponse(BaseModel):
+    document_id: str
+    main_version_id: str
+    versions: list[CandidateCvVersionResponse]

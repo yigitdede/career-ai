@@ -481,6 +481,15 @@ class CareerTalentApiClient
         return $this->postJson('/api/v1/cv/documents/'.rawurlencode($documentId).'/builder-draft', [], 15);
     }
 
+    public function activateCvBuilderDraft(string $documentId, string $language): array
+    {
+        return $this->postJson(
+            '/api/v1/cv/documents/'.rawurlencode($documentId).'/builder-activate',
+            ['language' => $language],
+            15,
+        );
+    }
+
     public function archiveGeneratedCv(UploadedFile $file, string $displayName, string $language, string $builderData): array
     {
         try {

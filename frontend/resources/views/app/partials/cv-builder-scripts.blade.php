@@ -15,6 +15,8 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         archivePdfUrl,
         restoredFromHistory,
         saveStatus: 'idle',
+        builderHydrating: true,
+        cleanBuilderSnapshot: '',
         hasReadyAnalysis: serverHasCv,
         serverAnalysisStatus,
         serverAnalysisId,
@@ -49,7 +51,7 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         _skipLocalesSync: false,
         _versionsInitialized: false,
 
-        init() {
+        async init() {
             if (serverHasCv) {
                 this.cvFileName = serverFileName || this.cvFileName;
             }
@@ -58,8 +60,20 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
             // Ana CV sürümü fetchVersions() tamamlandığında editöre otomatik yüklenecek.
             this.normalizeAllLocales();
             window.addEventListener('panel-cv-updated', () => this.syncFromStore());
-            this.fetchVersions();
+            await this.fetchVersions();
+            this.markBuilderClean();
+            this.builderHydrating = false;
             this.resumePendingAnalysis();
+        },
+
+        get hasUnsavedChanges() {
+            return !this.builderHydrating
+                && (window.PanelCvStore?.builderChanged(this.locales, this.cleanBuilderSnapshot) ?? false);
+        },
+
+        markBuilderClean() {
+            this.cleanBuilderSnapshot = window.PanelCvStore?.snapshotBuilder(this.locales)
+                ?? JSON.stringify(this.locales || {});
         },
 
         async resumePendingAnalysis() {
@@ -183,7 +197,7 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
         },
 
         async saveCv() {
-            if (!this.analyzeBuilderUrl) {
+            if (!this.analyzeBuilderUrl || !this.hasUnsavedChanges) {
                 return;
             }
 
@@ -417,7 +431,13 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
                         this._versionsInitialized = true;
                         const mainVersion = this.cvVersions.find(v => v.is_main === true);
                         if (mainVersion) {
-                            this.locales[mainVersion.language] = JSON.parse(JSON.stringify(mainVersion.payload));
+                            const linkedVersions = window.PanelCvStore?.linkedBuilderVersions(this.cvVersions, mainVersion)
+                                ?? [mainVersion];
+                            linkedVersions.forEach((version) => {
+                                if (['tr', 'en'].includes(version.language) && version.payload) {
+                                    this.locales[version.language] = JSON.parse(JSON.stringify(version.payload));
+                                }
+                            });
                             this.normalizeAllLocales();
                             this.editLang = mainVersion.language;
                             this.previewLang = mainVersion.language;
@@ -483,6 +503,7 @@ function cvBuilder(initial, uiLabels, panelLocale, serverHasCv = false, serverFi
             this.previewLang = version.language;
             // Aktif yüklenen sürümü sadece manuel "Editöre Yükle" ile güncelle
             this.activeLoadedVersionId = version.id;
+            this.markBuilderClean();
             if (window.PanelCvStore) {
                 window.PanelCvStore.saveBuilder(this.locales, this.panelLocale);
             }

@@ -21,7 +21,15 @@ from app.models.career_engine import CareerAnalysis
 from app.models.user import User
 from app.models.engagement import CvDocument, CandidateCvVersion
 from app.schemas.career import CVQueueResponse
-from app.schemas.cv import AnalyzeTextRequest, CandidateCvVersionCreate, CandidateCvVersionUpdate, CandidateCvVersionResponse, GeneratedCvQueueResponse
+from app.schemas.cv import (
+    ActivateBuilderDraftRequest,
+    ActivateBuilderDraftResponse,
+    AnalyzeTextRequest,
+    CandidateCvVersionCreate,
+    CandidateCvVersionResponse,
+    CandidateCvVersionUpdate,
+    GeneratedCvQueueResponse,
+)
 from app.services.career_engine import career_evidence_file_paths, create_analysis, remove_career_evidence_files, reset_career_state
 from app.services.cv_content import has_meaningful_cv_content
 from app.services.cv_parser import extract_text_from_pdf
@@ -75,7 +83,11 @@ def _generated_snapshot(builder_data: str, language: str) -> dict:
     return snapshot
 
 
-def _serialize_document(row: CvDocument, include_builder: bool = False) -> dict:
+def _serialize_document(
+    row: CvDocument,
+    include_builder: bool = False,
+    builder_opened: bool = False,
+) -> dict:
     payload = {
         "id": row.id,
         "kind": row.kind,
@@ -87,6 +99,7 @@ def _serialize_document(row: CvDocument, include_builder: bool = False) -> dict:
         "builder_draft_status": row.builder_draft_status,
         "builder_draft_error": row.builder_draft_error,
         "builder_draft_analysis_id": row.builder_draft_analysis_id,
+        "builder_opened": builder_opened,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
     if include_builder:
@@ -194,14 +207,28 @@ async def analyze_cv(db: DB, user: CurrentUser, file: UploadFile = File(...)):
 @router.get("/documents")
 def list_cv_documents(db: DB, user: CurrentUser):
     rows = db.scalars(select(CvDocument).where(CvDocument.user_id == user.id).order_by(CvDocument.created_at.desc())).all()
-    return [_serialize_document(row) for row in rows]
+    opened_document_ids = set(db.scalars(
+        select(CandidateCvVersion.source_document_id).where(
+            CandidateCvVersion.user_id == user.id,
+            CandidateCvVersion.source_document_id.is_not(None),
+        )
+    ).all())
+    return [_serialize_document(row, builder_opened=row.id in opened_document_ids) for row in rows]
 
 
 @router.get("/documents/{document_id}")
 def get_cv_document(document_id: str, db: DB, user: CurrentUser):
     row = db.scalar(select(CvDocument).where(CvDocument.id == document_id, CvDocument.user_id == user.id))
     if row is None: raise HTTPException(status_code=404, detail="CV kaydı bulunamadı")
-    return _serialize_document(row, include_builder=True)
+    builder_opened = db.scalar(
+        select(func.count())
+        .select_from(CandidateCvVersion)
+        .where(
+            CandidateCvVersion.user_id == user.id,
+            CandidateCvVersion.source_document_id == row.id,
+        )
+    ) or 0
+    return _serialize_document(row, include_builder=True, builder_opened=builder_opened > 0)
 
 
 @router.post("/documents/{document_id}/builder-draft", status_code=202)
@@ -244,6 +271,80 @@ def queue_cv_builder_draft(document_id: str, db: DB, user: CurrentUser):
         db.commit()
         raise HTTPException(status_code=503, detail=row.builder_draft_error) from exc
     return _serialize_document(row)
+
+
+@router.post(
+    "/documents/{document_id}/builder-activate",
+    response_model=ActivateBuilderDraftResponse,
+)
+def activate_cv_builder_draft(
+    document_id: str,
+    body: ActivateBuilderDraftRequest,
+    db: DB,
+    user: CurrentUser,
+):
+    row = db.scalar(select(CvDocument).where(
+        CvDocument.id == document_id,
+        CvDocument.user_id == user.id,
+    ))
+    if row is None:
+        raise HTTPException(status_code=404, detail="CV kaydı bulunamadı")
+    if row.kind != "uploaded":
+        raise HTTPException(status_code=422, detail="Yalnız yüklenen PDF CV oluşturucuya aktarılabilir")
+    if row.builder_draft_status != "ready" or not isinstance(row.builder_data, dict):
+        raise HTTPException(status_code=409, detail="CV oluşturucu taslağı henüz hazır değil")
+
+    localized = {
+        language: payload
+        for language in ("tr", "en")
+        if isinstance((payload := row.builder_data.get(language)), dict)
+    }
+    if body.language not in localized:
+        raise HTTPException(status_code=422, detail="Seçilen dil için CV oluşturucu içeriği bulunamadı")
+
+    db.execute(
+        update(CandidateCvVersion)
+        .where(CandidateCvVersion.user_id == user.id)
+        .values(is_main=False)
+    )
+    existing = {
+        version.language: version
+        for version in db.scalars(
+            select(CandidateCvVersion).where(
+                CandidateCvVersion.user_id == user.id,
+                CandidateCvVersion.source_document_id == row.id,
+            )
+        ).all()
+    }
+    base_name = re.sub(r"\.pdf$", "", row.display_name, flags=re.IGNORECASE).strip() or "CV"
+    versions: list[CandidateCvVersion] = []
+    for language, payload in localized.items():
+        version = existing.get(language)
+        if version is None:
+            version = CandidateCvVersion(
+                id=str(uuid4()),
+                user_id=user.id,
+                source_document_id=row.id,
+                version_name=f"{base_name} {language.upper()}",
+                language=language,
+                is_main=language == body.language,
+                payload=payload,
+            )
+            db.add(version)
+        else:
+            version.payload = payload
+            version.is_main = language == body.language
+        versions.append(version)
+
+    db.commit()
+    for version in versions:
+        db.refresh(version)
+    main_version = next(version for version in versions if version.language == body.language)
+    return {
+        "document_id": row.id,
+        "main_version_id": main_version.id,
+        "versions": versions,
+    }
 
 
 @router.post("/documents/{document_id}/analyze", response_model=CVQueueResponse, status_code=202)

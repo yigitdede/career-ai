@@ -171,6 +171,8 @@ class CvHistoryTest extends TestCase
             ->assertSee('Eğitim')
             ->assertSee('2 alan boş bırakıldı')
             ->assertSee('if (!this.restoredFromHistory && !this._versionsInitialized)', false)
+            ->assertSee('!hasUnsavedChanges', false)
+            ->assertSee('markBuilderClean()', false)
             ->assertSee('data-cv-builder-import-notice', false);
     }
 
@@ -195,6 +197,27 @@ class CvHistoryTest extends TestCase
 
         Http::assertSent(fn ($request): bool => $request->method() === 'POST'
             && $request->url() === 'http://localhost:8000/api/v1/cv/documents/upload-1/builder-draft');
+    }
+
+    public function test_opening_uploaded_builder_draft_persists_it_before_redirecting(): void
+    {
+        Http::fake([
+            'http://localhost:8000/api/v1/cv/documents/upload-1/builder-activate' => Http::response([
+                'document_id' => 'upload-1',
+                'main_version_id' => 'version-tr',
+                'versions' => [
+                    ['id' => 'version-tr', 'language' => 'tr', 'is_main' => true],
+                    ['id' => 'version-en', 'language' => 'en', 'is_main' => false],
+                ],
+            ]),
+        ]);
+
+        $this->post('/panel/cv-merkezi/belgeler/upload-1/taslak/ac', ['language' => 'tr'])
+            ->assertRedirect('/panel/cv-merkezi?cvDocument=upload-1');
+
+        Http::assertSent(fn ($request): bool => $request->method() === 'POST'
+            && $request->url() === 'http://localhost:8000/api/v1/cv/documents/upload-1/builder-activate'
+            && $request['language'] === 'tr');
     }
 
     public function test_ai_created_cv_version_opens_in_builder_without_replacing_main_cv(): void

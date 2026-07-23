@@ -2,7 +2,8 @@ import pytest
 from sqlalchemy import select
 from app.main import app
 from app.core.database import get_db
-from app.models.engagement import CandidateCvVersion
+from app.models.engagement import CandidateCvVersion, CvDocument
+from app.models.user import User
 from app.models.company_recruiting import (
     RecruitingPosition,
     RecruitingApplication,
@@ -102,6 +103,84 @@ def test_cv_versions_crud(client):
     # Verify deletion
     response = client.get("/api/v1/cv/versions", headers=headers)
     assert len(response.json()) == 1
+
+
+def test_uploaded_builder_draft_activation_persists_bilingual_versions_idempotently(client):
+    client.post(
+        "/api/v1/auth/register",
+        json={"full_name": "Import User", "email": "import@example.com", "password": PASSWORD},
+    )
+    token = client.post(
+        "/api/v1/auth/login",
+        data={"username": "import@example.com", "password": PASSWORD},
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    with next(app.dependency_overrides[get_db]()) as db:
+        user = db.scalar(select(User).where(User.email == "import@example.com"))
+        db.add(CvDocument(
+            id="uploaded-builder-1",
+            user_id=user.id,
+            kind="uploaded",
+            display_name="Import User.pdf",
+            original_name="Import User.pdf",
+            file_path="/tmp/uploaded-builder-1.pdf",
+            file_size=321,
+            builder_draft_status="ready",
+            builder_data={
+                "tr": {"personal": {"full_name": "İçe Aktarılan Kullanıcı"}, "skills": []},
+                "en": {"personal": {"full_name": "Imported User"}, "skills": []},
+                "_meta": {"source_file_name": "Import User.pdf"},
+            },
+            is_current=True,
+        ))
+        db.commit()
+
+    response = client.post(
+        "/api/v1/cv/documents/uploaded-builder-1/builder-activate",
+        headers=headers,
+        json={"language": "tr"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document_id"] == "uploaded-builder-1"
+    assert len(payload["versions"]) == 2
+    assert next(item for item in payload["versions"] if item["language"] == "tr")["is_main"] is True
+    assert next(item for item in payload["versions"] if item["language"] == "en")["is_main"] is False
+    assert all(item["source_document_id"] == "uploaded-builder-1" for item in payload["versions"])
+
+    second = client.post(
+        "/api/v1/cv/documents/uploaded-builder-1/builder-activate",
+        headers=headers,
+        json={"language": "en"},
+    )
+    assert second.status_code == 200
+    assert len(second.json()["versions"]) == 2
+    assert next(item for item in second.json()["versions"] if item["language"] == "en")["is_main"] is True
+
+    versions = client.get("/api/v1/cv/versions", headers=headers).json()
+    assert len(versions) == 2
+    assert {item["language"] for item in versions} == {"tr", "en"}
+    assert next(item for item in versions if item["language"] == "tr")["payload"]["personal"]["full_name"] == "İçe Aktarılan Kullanıcı"
+    assert next(item for item in versions if item["language"] == "en")["payload"]["personal"]["full_name"] == "Imported User"
+
+    documents = client.get("/api/v1/cv/documents", headers=headers).json()
+    assert documents[0]["builder_opened"] is True
+
+    client.post(
+        "/api/v1/auth/register",
+        json={"full_name": "Other User", "email": "other-import@example.com", "password": PASSWORD},
+    )
+    other_token = client.post(
+        "/api/v1/auth/login",
+        data={"username": "other-import@example.com", "password": PASSWORD},
+    ).json()["access_token"]
+    forbidden = client.post(
+        "/api/v1/cv/documents/uploaded-builder-1/builder-activate",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={"language": "tr"},
+    )
+    assert forbidden.status_code == 404
 
 
 def test_apply_job_creates_snapshot(client, monkeypatch):

@@ -17,7 +17,42 @@ def test_migration_graph_has_one_unambiguous_head() -> None:
 
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["20260722_19"]
+    assert script.get_heads() == ["20260723_20"]
+
+
+def test_builder_import_version_migration_links_source_document(tmp_path) -> None:
+    backend_dir = Path(__file__).resolve().parents[1]
+    path = backend_dir / "migrations/versions/20260723_20_builder_import_versions.py"
+    spec = spec_from_file_location("builder_import_version_migration", path)
+    assert spec is not None and spec.loader is not None
+    migration = module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'builder-import-version.sqlite'}")
+
+    with engine.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE cv_documents (id VARCHAR(36) PRIMARY KEY)")
+        connection.exec_driver_sql(
+            "CREATE TABLE candidate_cv_versions ("
+            "id VARCHAR(36) PRIMARY KEY, user_id INTEGER NOT NULL, "
+            "version_name VARCHAR(160) NOT NULL, language VARCHAR(8) NOT NULL, "
+            "is_main BOOLEAN NOT NULL, payload JSON NOT NULL, "
+            "created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)"
+        )
+        migration.op = Operations(MigrationContext.configure(connection))
+        migration.upgrade()
+
+        inspector = sa.inspect(connection)
+        columns = {item["name"] for item in inspector.get_columns("candidate_cv_versions")}
+        indexes = {item["name"]: item for item in inspector.get_indexes("candidate_cv_versions")}
+        foreign_keys = inspector.get_foreign_keys("candidate_cv_versions")
+
+        assert "source_document_id" in columns
+        assert indexes["uq_candidate_cv_versions_source_document_language"]["unique"] == 1
+        assert any(
+            item["referred_table"] == "cv_documents"
+            and item["constrained_columns"] == ["source_document_id"]
+            for item in foreign_keys
+        )
 
 
 def test_job_analysis_provenance_migration_adds_nullable_snapshot_columns(tmp_path) -> None:

@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\App;
 
 use App\Services\CareerTalentApiClient;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Lang;
 
 class CvBuilderController extends PanelController
@@ -210,6 +211,24 @@ class CvBuilderController extends PanelController
     public function queueBuilderDraft(string $documentId, CareerTalentApiClient $api): JsonResponse
     {
         return $this->apiResponse($api->queueCvBuilderDraft($documentId));
+    }
+
+    public function activateBuilderDraft(
+        Request $request,
+        string $documentId,
+        CareerTalentApiClient $api,
+    ): RedirectResponse {
+        $payload = $request->validate([
+            'language' => ['required', 'in:tr,en'],
+        ]);
+        $result = $api->activateCvBuilderDraft($documentId, $payload['language']);
+        if (! ($result['ok'] ?? false)) {
+            return back()->withErrors([
+                'cv' => $result['error'] ?? __('panel.profile.cv_builder_import_failed'),
+            ]);
+        }
+
+        return redirect()->route('panel.cv-builder', ['cvDocument' => $documentId]);
     }
 
     private function apiResponse(array $result): JsonResponse

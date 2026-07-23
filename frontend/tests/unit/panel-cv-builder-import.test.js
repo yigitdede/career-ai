@@ -63,4 +63,13 @@ describe('cvBuilderImport', () => {
         assert.equal(state.error, 'Kuyruk geçici olarak kullanılamıyor.');
         assert.equal(state.busy, false);
     });
+
+    it('hides the open action after the imported draft is persisted', () => {
+        const unopened = cvBuilderImport({ builder_draft_status: 'ready', builder_opened: false });
+        const opened = cvBuilderImport({ builder_draft_status: 'ready', builder_opened: true });
+
+        assert.equal(unopened.canOpen, true);
+        assert.equal(opened.canOpen, false);
+        assert.equal(opened.opened, true);
+    });
 });
