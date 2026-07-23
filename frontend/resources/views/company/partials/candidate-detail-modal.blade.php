@@ -69,13 +69,22 @@
                 </div>
                 <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
                     <span class="text-xs uppercase font-semibold text-slate-400 block mb-1">{{ __('company.applications.cv_version') }}</span>
-                    <template x-if="selectedCandidate?.application_snapshot?.cv">
-                        <div>
-                            <p class="font-semibold text-slate-800 dark:text-slate-200" x-text="selectedCandidate.application_snapshot.cv.display_name || 'Özgeçmiş'"></p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400" x-text="'Dil: ' + (selectedCandidate.application_snapshot.cv.language || 'TR').toUpperCase()"></p>
+                    <template x-if="selectedCandidate?.application_snapshot?.cv || selectedCandidate?.cv_document_id">
+                        <div class="flex items-center justify-between gap-2">
+                            <div>
+                                <p class="font-semibold text-slate-800 dark:text-slate-200 hover:underline cursor-pointer"
+                                   @click="openCvPreview(selectedCandidate)"
+                                   x-text="selectedCandidate?.application_snapshot?.cv?.display_name || 'Özgeçmiş Dokümanı'"></p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400" x-text="'Dil: ' + ((selectedCandidate?.application_snapshot?.cv?.language || 'TR').toUpperCase())"></p>
+                            </div>
+                            <button type="button"
+                                    @click="openCvPreview(selectedCandidate)"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition">
+                                👁️ Önizle / İncele
+                            </button>
                         </div>
                     </template>
-                    <template x-if="!selectedCandidate?.application_snapshot?.cv">
+                    <template x-if="!selectedCandidate?.application_snapshot?.cv && !selectedCandidate?.cv_document_id">
                         <p class="text-sm text-slate-500 dark:text-slate-400">Yüklü CV bilgisi yok</p>
                     </template>
                 </div>

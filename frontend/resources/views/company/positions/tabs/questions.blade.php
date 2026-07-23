@@ -98,7 +98,7 @@
 
                 <div class="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
                     <button type="button" @click="closeFormModal()" class="panel-btn-secondary">İptal</button>
-                    <button type="submit" class="company-btn-primary">{{ __('company.applications.save_question') }}</button>
+                    <button type="button" @click="saveQuestion()" class="company-btn-primary">{{ __('company.applications.save_question') }}</button>
                 </div>
             </form>
         </div>
@@ -137,17 +137,21 @@ function companyPositionQuestions(config) {
             this.isFormOpen = false;
         },
         async saveQuestion() {
+            if (!this.form.question_text || !this.form.question_text.trim()) return;
+
             const options = this.form.question_type === 'single_choice'
                 ? this.form.options_text.split('\n').map(s => s.trim()).filter(Boolean)
                 : [];
             
             const payload = {
-                question_text: this.form.question_text,
+                question_text: this.form.question_text.trim(),
                 question_type: this.form.question_type,
                 options: options,
-                is_required: this.form.is_required,
+                is_required: !!this.form.is_required,
                 sort_order: this.questions.length,
             };
+
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
             try {
                 const url = this.editingId 
@@ -157,7 +161,11 @@ function companyPositionQuestions(config) {
                 const method = this.editingId ? 'PUT' : 'POST';
                 const res = await fetch(url, {
                     method: method,
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        ...(token ? { 'X-CSRF-TOKEN': token } : {})
+                    },
                     body: JSON.stringify(payload)
                 });
                 

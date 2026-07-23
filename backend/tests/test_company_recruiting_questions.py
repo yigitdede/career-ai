@@ -96,3 +96,59 @@ def test_position_questions_crud(client: TestClient):
 
     res_list2 = client.get(f"/api/v1/company/positions/pos-q-1/questions", headers=headers)
     assert len(res_list2.json()) == 1
+
+
+def test_create_position_with_questions(client: TestClient):
+    user = _register_user(client, "company_create_q@example.com", "Pozisyon Olusturan")
+    org_id = "org-create-q-test"
+
+    with next(app.dependency_overrides[get_db]()) as db:
+        stored = db.get(User, user.id)
+        stored.role = "company"
+        org = Organization(
+            id=org_id, name="Create Q Corp", slug="create-q-corp", organization_type="employer",
+            size_band="smb", status="active", plan_code="growth", billing_email="billing@create-q-corp.example.com"
+        )
+        membership = OrganizationMembership(
+            id="mem-create-q", organization_id=org.id, user_id=user.id, role="owner", permissions=["positions.view", "positions.write"], status="active"
+        )
+        db.add_all([stored, org, membership])
+        db.commit()
+
+    login_res = client.post("/api/v1/auth/login", data={"username": "company_create_q@example.com", "password": PASSWORD})
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}", "X-Organization-ID": org_id}
+
+    res = client.post(
+        "/api/v1/company/positions",
+        headers=headers,
+        json={
+            "title": "Backend Architect",
+            "status": "published",
+            "questions": [
+                {
+                    "question_text": "Kaç yıl Python/FastAPI tecrübeniz var?",
+                    "question_type": "number",
+                    "is_required": True,
+                    "sort_order": 0,
+                },
+                {
+                    "question_text": "Hibrit çalışmaya uygun musunuz?",
+                    "question_type": "single_choice",
+                    "options": ["Evet", "Hayır"],
+                    "is_required": True,
+                    "sort_order": 1,
+                }
+            ]
+        }
+    )
+    assert res.status_code == 201
+    pos_id = res.json()["id"]
+
+    # Check questions created for position
+    res_q = client.get(f"/api/v1/company/positions/{pos_id}/questions", headers=headers)
+    assert res_q.status_code == 200
+    q_items = res_q.json()
+    assert len(q_items) == 2
+    assert q_items[0]["question_text"] == "Kaç yıl Python/FastAPI tecrübeniz var?"
+

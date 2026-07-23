@@ -399,6 +399,13 @@ class CompanyController extends Controller
     /** @return array<string, mixed> */
     private function positionPayload(Request $request, bool $creating): array
     {
+        if ($request->has('questions_json') && is_string($request->input('questions_json'))) {
+            $parsed = json_decode($request->input('questions_json'), true);
+            if (is_array($parsed)) {
+                $request->merge(['questions' => $parsed]);
+            }
+        }
+
         $payload = $request->validate([
             'title' => [$creating ? 'required' : 'sometimes', 'string', 'min:2', 'max:160'],
             'department' => ['nullable', 'string', 'max:120'],
@@ -434,6 +441,12 @@ class CompanyController extends Controller
             'scoring_rubric' => ['nullable', 'string', 'max:20000'],
             'success_threshold' => ['nullable', 'integer', 'min:0', 'max:100'],
             'human_review_required' => ['nullable', 'boolean'],
+            'questions' => ['nullable', 'array'],
+            'questions.*.question_text' => ['required_with:questions', 'string', 'max:500'],
+            'questions.*.question_type' => ['required_with:questions', 'string', Rule::in(['text', 'number', 'single_choice'])],
+            'questions.*.options' => ['nullable', 'array'],
+            'questions.*.is_required' => ['nullable', 'boolean'],
+            'questions.*.sort_order' => ['nullable', 'integer'],
             'status' => [$creating ? 'required' : 'sometimes', Rule::in(['draft', 'published', 'paused', 'closed'])],
         ]);
         foreach (['department', 'level', 'employment_type', 'workplace_type', 'location', 'salary_min', 'salary_max', 'salary_currency', 'source_text', 'description', 'responsibilities', 'experience_expectation', 'language_work_authorization', 'application_deadline', 'target_start_date', 'recruiter_membership_id', 'technical_manager_membership_id', 'retention_days', 'ats_notes', 'application_form_id', 'assessment_template_id'] as $field) {

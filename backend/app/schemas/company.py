@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
@@ -153,6 +155,7 @@ class CompanyPositionCreate(BaseModel):
     application_deadline: datetime | None = None
     target_start_date: date | None = None
     status: PositionStatus = "draft"
+    questions: list[CompanyPositionQuestionCreate] | None = None
 
     @field_validator("salary_currency")
     @classmethod
@@ -200,6 +203,7 @@ class CompanyPositionUpdate(BaseModel):
     application_deadline: datetime | None = None
     target_start_date: date | None = None
     status: PositionStatus | None = None
+    questions: list[CompanyPositionQuestionCreate] | None = None
 
     @field_validator("salary_currency")
     @classmethod

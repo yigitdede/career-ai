@@ -327,6 +327,7 @@ def create_position(
     _, organization, membership = _require_permission(context, "positions.write")
     now = datetime.now(UTC)
     values = payload.model_dump()
+    questions_payload = values.pop("questions", None)
     _validate_position_assignees(db, organization.id, values)
     if payload.status == "published" and payload.application_deadline is not None:
         deadline = payload.application_deadline if payload.application_deadline.tzinfo is not None else payload.application_deadline.replace(tzinfo=UTC)
@@ -342,6 +343,21 @@ def create_position(
     )
     db.add(position)
     db.flush()
+
+    if questions_payload:
+        for idx, q_item in enumerate(questions_payload):
+            q_row = RecruitingPositionQuestion(
+                id=str(uuid4()),
+                organization_id=organization.id,
+                position_id=position.id,
+                question_text=q_item.get("question_text") if isinstance(q_item, dict) else q_item.question_text,
+                question_type=q_item.get("question_type", "text") if isinstance(q_item, dict) else q_item.question_type,
+                options=q_item.get("options", []) if isinstance(q_item, dict) else q_item.options,
+                is_required=q_item.get("is_required", True) if isinstance(q_item, dict) else q_item.is_required,
+                sort_order=q_item.get("sort_order", idx) if isinstance(q_item, dict) else (q_item.sort_order if q_item.sort_order is not None else idx),
+            )
+            db.add(q_row)
+
     add_activity(db, position, "position.created", membership_id=membership.id, details={"status": position.status})
     db.commit()
     db.refresh(position)

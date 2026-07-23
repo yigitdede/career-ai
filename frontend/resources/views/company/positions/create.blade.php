@@ -59,6 +59,84 @@
             </div>
         </section>
 
+        <!-- İlan Ön Eleme / Başvuru Soruları -->
+        <section class="panel-card p-6" x-data="createPositionQuestions()">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900 dark:text-white">İlan Ön Eleme / Başvuru Soruları</h2>
+                    <p class="panel-muted text-sm mt-0.5">Adayların ilana başvururken dolduracağı özel soruları tanımlayın.</p>
+                </div>
+                <button type="button" @click="addQuestion()" class="company-btn-primary text-xs">
+                    + Soru Ekle
+                </button>
+            </div>
+
+            <input type="hidden" name="questions_json" :value="JSON.stringify(questions)">
+
+            <div class="mt-5 space-y-4">
+                <template x-if="questions.length === 0">
+                    <p class="text-xs panel-muted py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">Henüz ön eleme sorusu eklenmedi. Soru eklemek için yukarıdaki "+ Soru Ekle" butonuna tıklayın.</p>
+                </template>
+
+                <template x-for="(q, index) in questions" :key="index">
+                    <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-500" x-text="'Soru ' + (index + 1)"></span>
+                            <button type="button" @click="removeQuestion(index)" class="text-xs text-rose-600 hover:underline font-semibold">Sil</button>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div class="sm:col-span-2">
+                                <label class="text-xs font-medium text-slate-700 dark:text-slate-300 block mb-1">Soru Metni</label>
+                                <input type="text" x-model="q.question_text" required class="panel-input-block text-xs" placeholder="Örn: Kaç yıl deneyiminiz var?">
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-slate-700 dark:text-slate-300 block mb-1">Soru Tipi</label>
+                                <select x-model="q.question_type" class="panel-input-block text-xs">
+                                    <option value="text">Metin (Text)</option>
+                                    <option value="number">Sayı (Number)</option>
+                                    <option value="single_choice">Çoktan Seçmeli (Single Choice)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center pt-5">
+                                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer">
+                                    <input type="checkbox" x-model="q.is_required" class="h-4 w-4 rounded border-slate-300 text-primary-600">
+                                    <span>Zorunlu Soru</span>
+                                </label>
+                            </div>
+                            <div x-show="q.question_type === 'single_choice'" class="sm:col-span-2">
+                                <label class="text-xs font-medium text-slate-700 dark:text-slate-300 block mb-1">Seçenekler (Her satıra bir seçenek)</label>
+                                <textarea x-model="q.options_text" @input="updateOptions(q)" rows="2" class="panel-input-block text-xs" placeholder="Seçenek 1&#10;Seçenek 2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </section>
+
+        <script>
+        function createPositionQuestions() {
+            return {
+                questions: [],
+                addQuestion() {
+                    this.questions.push({
+                        question_text: '',
+                        question_type: 'text',
+                        is_required: true,
+                        options_text: '',
+                        options: [],
+                        sort_order: this.questions.length
+                    });
+                },
+                removeQuestion(index) {
+                    this.questions.splice(index, 1);
+                },
+                updateOptions(q) {
+                    q.options = (q.options_text || '').split('\n').map(s => s.trim()).filter(Boolean);
+                }
+            };
+        }
+        </script>
+
         <section class="panel-card p-6">
             <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
                 <label class="text-sm">{{ __('company_positions.fields.recruiter') }}<select class="panel-input-block mt-2" name="recruiter_membership_id"><option value="">—</option>@foreach($recruiters as $member)<option value="{{ $member['membership_id'] }}" @selected(old('recruiter_membership_id')===$member['membership_id'])>{{ $member['full_name'] }}</option>@endforeach</select></label>
