@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\App;
 
-use App\Data\PanelDemoData;
 use App\Services\CareerTalentApiClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -76,7 +75,27 @@ class CvBuilderController extends PanelController
     /** @param array<string, mixed> $profile */
     private function blankCvDraft(array $profile): array
     {
-        $draft = PanelDemoData::cvDraft();
+        $emptyLocale = [
+            'personal' => [
+                'full_name' => '',
+                'email' => '',
+                'phone' => '',
+                'location' => '',
+                'linkedin' => '',
+                'summary' => '',
+            ],
+            'education' => [],
+            'experience' => [],
+            'skills' => [],
+            'projects' => [],
+            'certificates' => [],
+            'enabledOptional' => [],
+            'optional' => [],
+        ];
+        $draft = [
+            'tr' => $emptyLocale,
+            'en' => $emptyLocale,
+        ];
         $profilePersonal = [
             'full_name' => (string) ($profile['full_name'] ?? ''),
             'email' => (string) ($profile['email'] ?? ''),

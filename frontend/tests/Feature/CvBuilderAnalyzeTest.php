@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Data\PanelDemoData;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
@@ -35,23 +34,46 @@ class CvBuilderAnalyzeTest extends TestCase
         Http::fake([
             'http://localhost:8000/api/v1/cv/documents/generated/activate' => Http::response([
                 'status' => 'queued', 'analysis_id' => 'analysis-builder-1',
-                'file_name' => 'Ayşe Yılmaz CV.pdf', 'cv_document_id' => 'generated-1',
+                'file_name' => 'Test Candidate CV.pdf', 'cv_document_id' => 'generated-1',
             ], 202),
         ]);
 
         $response = $this->post(route('panel.cv.analyze-builder'), [
-            'pdf' => UploadedFile::fake()->createWithContent('Ayşe Yılmaz CV.pdf', "%PDF-1.4\n%%EOF"),
-            'display_name' => 'Ayşe Yılmaz CV.pdf',
+            'pdf' => UploadedFile::fake()->createWithContent('Test Candidate CV.pdf', "%PDF-1.4\n%%EOF"),
+            'display_name' => 'Test Candidate CV.pdf',
             'language' => 'tr',
-            'locales' => json_encode(PanelDemoData::cvDraft(), JSON_UNESCAPED_UNICODE),
+            'locales' => json_encode($this->careerDraft(), JSON_UNESCAPED_UNICODE),
         ]);
 
         $response->assertAccepted()
             ->assertJsonPath('analysis_id', 'analysis-builder-1')
-            ->assertJsonPath('file_name', 'Ayşe Yılmaz CV.pdf');
+            ->assertJsonPath('file_name', 'Test Candidate CV.pdf');
 
         $this->assertNull(session('cv_analysis'));
         Http::assertSent(fn ($request) => $request->url() === 'http://localhost:8000/api/v1/cv/documents/generated/activate'
-            && $request->method() === 'POST');
+             && $request->method() === 'POST');
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    private function careerDraft(): array
+    {
+        return [
+            'tr' => [
+                'personal' => [
+                    'full_name' => 'Test Candidate',
+                    'email' => 'candidate@example.test',
+                    'summary' => 'Backend uygulamaları geliştiren ve SQL veri modelleme deneyimi olan aday.',
+                ],
+                'experience' => [[
+                    'organization' => 'Test Organization',
+                    'title' => 'Backend Developer',
+                    'bullets' => ['Laravel ile API geliştirdi ve SQL sorgularını optimize etti.'],
+                ]],
+                'education' => [],
+                'skills' => [['category' => 'Teknik', 'items' => 'Laravel, SQL']],
+                'projects' => [],
+                'certificates' => [],
+            ],
+        ];
     }
 }

@@ -9,13 +9,11 @@ export function panelJobListings(initialItems, labels, initialCvDocuments = [], 
         employment: '',
         activeJob: null,
 
-        // Başvuru Modal State
         applicationJob: null,
-        demoApplicationOpen: false,
+        applicationOpen: false,
         selectedCvId: '',
         selectedVersionId: '',
-        demoConsent: false,
-        demoSubmitted: false,
+        applicationConsent: false,
         applicationSubmitting: false,
         applicationError: '',
         applicationSubmitted: false,
@@ -46,14 +44,12 @@ export function panelJobListings(initialItems, labels, initialCvDocuments = [], 
             this.activeJob = null;
         },
 
-        /** Tüm ilanlar için platform içi başvuru modalını açar (is_demo şartı YOK) */
         beginApplication(job) {
             this.applicationJob = job;
             this.applicationSubmitted = false;
             this.applicationError = '';
             this.applicationSubmitting = false;
-            this.demoConsent = false;
-            this.demoSubmitted = false;
+            this.applicationConsent = false;
 
             // CV sürümü önceliği: is_main olanı seç, yoksa ilki
             this.selectedVersionId =
@@ -67,30 +63,16 @@ export function panelJobListings(initialItems, labels, initialCvDocuments = [], 
                 this.cvDocuments[0]?.id ||
                 '';
 
-            this.demoApplicationOpen = true;
+            this.applicationOpen = true;
         },
 
-        closeDemoApplication() {
-            this.demoApplicationOpen = false;
+        closeApplication() {
+            this.applicationOpen = false;
             this.applicationJob = null;
         },
 
-        /**
-         * Demo başvuru (sadece başarı ekranı, API kaydı yok).
-         * Gerçek başvurular için completeApplication() kullanılır.
-         */
-        completeDemoApplication() {
-            if (!this.selectedCvId || !this.demoConsent) return false;
-            this.demoSubmitted = true;
-            return true;
-        },
-
-        /**
-         * Platform içi başvuru — tüm ilanlar için.
-         * Backend'e POST /panel/basvurularim gönderir ve Başvurularım'a kayıt oluşturur.
-         */
         async completeApplication() {
-            if (!this.demoConsent) return;
+            if (!this.applicationConsent) return;
             if (!this.selectedVersionId && !this.selectedCvId) return;
 
             this.applicationSubmitting = true;

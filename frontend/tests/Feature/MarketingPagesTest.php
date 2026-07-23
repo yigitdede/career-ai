@@ -272,9 +272,9 @@ class MarketingPagesTest extends TestCase
         $response->assertSee('CV Merkezi');
         $response->assertSee('CV içerik dili');
         $response->assertSee('PDF hangi dilde indirilsin?');
-        $response->assertSee('İstanbul Üniversitesi');
-        $response->assertSee('Istanbul University');
-        $response->assertSee('Ayşe Yılmaz');
+        $response->assertDontSee('İstanbul Üniversitesi');
+        $response->assertDontSee('Istanbul University');
+        $response->assertDontSee('Ayşe Yılmaz');
         $response->assertSee('enabledOptional', false);
     }
 

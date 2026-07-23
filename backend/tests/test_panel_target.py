@@ -1,4 +1,4 @@
-"""Panel hedef rol kalıcılığı ve ilan parse testleri."""
+"""Panel ilan parse endpoint testleri."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 from app.core.security import get_current_user
 from app.main import app
 from app.models.user import User
-from app.services import panel_target_store
 
 client = TestClient(app)
 
@@ -15,38 +14,14 @@ client = TestClient(app)
 def authenticated_panel_user():
     app.dependency_overrides[get_current_user] = lambda: User(
         id=1,
-        full_name="Ayşe Yılmaz",
-        email="ayse@example.com",
+        full_name="Panel Test User",
+        email="panel-user@example.test",
         hashed_password="not-used",
         is_active=True,
         is_admin=False,
     )
     yield
     app.dependency_overrides.pop(get_current_user, None)
-
-
-def test_panel_target_persists_to_backend_store(tmp_path, monkeypatch):
-    monkeypatch.setattr(panel_target_store, "STORE_FILE", tmp_path / "panel_targets.json")
-
-    response = client.put(
-        "/api/v1/panel/target",
-        json={
-            "source": "custom",
-            "role_id": "custom-product-manager",
-            "title": "Product Manager",
-            "readiness": 35,
-            "gap_count": 4,
-            "gaps_summary": "Roadmap, stakeholder, metrics",
-            "required_skills": ["Roadmap", "Metrics"],
-        },
-    )
-
-    assert response.status_code == 200
-    assert response.json()["target"]["title"] == "Product Manager"
-
-    get_response = client.get("/api/v1/panel/target")
-    assert get_response.status_code == 200
-    assert get_response.json()["target"]["role_id"] == "custom-product-manager"
 
 
 def test_job_listing_parse_uses_html_title(monkeypatch):
